@@ -1,0 +1,14 @@
+[
+  {
+    "sha": "00000000000000000000000000000000sample5",
+    "title": "wasmtime 25 bump",
+    "body": "Upstream wasmtime 25 with new p3 instance-reuse impl",
+    "url": "https://github.com/wasmCloud/wasmCloud/pull/1234"
+  },
+  {
+    "sha": "00000000000000000000000000000000sample7",
+    "title": "p3 hot-path store pooling",
+    "body": "Reuse stores across requests for the p3 throughput path; expected +RPS on http_throughput",
+    "url": "https://github.com/wasmCloud/wasmCloud/pull/5678"
+  }
+]

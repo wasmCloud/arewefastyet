@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>releases · arewefastyet · wasmCloud</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" type="image/svg+xml" href="assets/wasmcloud-logo.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <a href="https://wasmcloud.com" class="brand-link" aria-label="wasmCloud">
+        <img class="logo" src="assets/wasmcloud-logo.svg" alt="wasmCloud" width="40" height="46">
+      </a>
+      <div class="brand-text">
+        <h1>are we fast yet? <span class="page-title">/ releases</span></h1>
+        <p class="kicker">wasmCloud · <code>wash-runtime</code> bench history</p>
+      </div>
+    </div>
+    <p class="lede">
+      Bench results across tagged releases. X-axis is the tag, ordered by
+      semver (not time) — so you can see how a metric evolved across
+      <code>v2.0 → v2.1 → v2.2</code> regardless of when those benches
+      were run.
+    </p>
+    <nav class="tabs">
+      <a href="./">trends</a>
+      <a href="compare.html">compare</a>
+      <a href="releases.html" class="active" aria-current="page">releases</a>
+    </nav>
+    <div class="meta">
+      <span id="last-updated">loading…</span>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/arewefastyet">site</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/wasmCloud/blob/main/scripts/bench/README.md">bench runbook</a>
+    </div>
+    <div class="controls">
+      <label>
+        bench
+        <select id="bench-filter">
+          <option value="all">all</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <main id="charts" aria-live="polite"></main>
+
+  <footer>
+    <p>
+      Each point is the mean from one bench run against that release tag.
+      To populate this view, dispatch the bench workflow with a tag as the
+      <code>ref</code> input (e.g. <code>v2.1.0</code>).
+    </p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+          integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+          crossorigin="anonymous"></script>
+  <script src="script.js"></script>
+  <script src="releases.js"></script>
+</body>
+</html>

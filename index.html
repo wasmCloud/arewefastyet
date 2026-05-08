@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>are we fast yet? · wasmCloud</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="wash-runtime benchmark history">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" type="image/svg+xml" href="assets/wasmcloud-logo.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <a href="https://wasmcloud.com" class="brand-link" aria-label="wasmCloud">
+        <img class="logo" src="assets/wasmcloud-logo.svg" alt="wasmCloud" width="40" height="46">
+      </a>
+      <div class="brand-text">
+        <h1>are we fast yet?</h1>
+        <p class="kicker">wasmCloud · <code>wash-runtime</code> bench history</p>
+      </div>
+    </div>
+    <p class="lede">
+      Bench host: <code>wasmcloud-bench-01</code>
+      (AMD Ryzen 5 3600, 6c, <code>nosmt</code>, governor=performance).
+    </p>
+    <nav class="tabs">
+      <a href="./" class="active" aria-current="page">trends</a>
+      <a href="compare.html">compare</a>
+      <a href="releases.html">releases</a>
+    </nav>
+    <div class="meta">
+      <span id="last-updated">loading…</span>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/arewefastyet">site</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/wasmCloud/blob/main/scripts/bench/README.md">bench runbook</a>
+    </div>
+    <div class="controls">
+      <label>
+        ref
+        <select id="ref-filter">
+          <option value="main">main only</option>
+          <option value="all">all refs</option>
+        </select>
+      </label>
+      <label>
+        bench
+        <select id="bench-filter">
+          <option value="all">all</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <main id="charts" aria-live="polite"></main>
+
+  <footer>
+    <p>
+      Lines are the criterion <code>point_estimate</code> (mean). Per-card
+      header shows whether higher or lower is better.
+      Hover a point for the 95 % CI; click to open the workflow run.
+      Dashed vertical lines mark <a href="https://github.com/wasmCloud/arewefastyet/blob/main/data/annotations.json">annotated commits</a>
+      (perf-relevant landings); hover one to read the note, click to open the linked PR.
+    </p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+          integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"
+          integrity="sha384-cVMg8E3QFwTvGCDuK+ET4PD341jF3W8nO1auiXfuZNQkzbUUiBGLsIQUE+b1mxws"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.umd.min.js"
+          integrity="sha384-GJhFqHCxtXdWlbGuEsGV6iJ9Cpuetkq+U26pQdexhrOjE31rbamy3lJagn1n+A/y"
+          crossorigin="anonymous"></script>
+  <script src="script.js"></script>
+</body>
+</html>

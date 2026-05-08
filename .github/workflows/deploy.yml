@@ -1,0 +1,67 @@
+name: deploy
+
+# Builds and deploys arewefastyet.wasmcloud.com.
+#
+# The site fetches bench data live from CloudFront (in front of S3 in the
+# wasmCloud AWS account); this workflow has no AWS auth and no aggregation
+# step. New bench runs flip the dashboard within ~max-age=60 of the upload,
+# without a re-deploy here.
+#
+# Triggers:
+#   - on push to main (so HTML/CSS/JS edits ship)
+#   - manual dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+defaults:
+  run:
+    shell: bash
+
+permissions: {}
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: write config.json with the live data URL
+        env:
+          DATA_URL: ${{ vars.DATA_URL }}
+        run: |
+          if [ -z "${DATA_URL}" ]; then
+            echo "::error::vars.DATA_URL not set (e.g. https://dXXXX.cloudfront.net/history.json)"
+            exit 1
+          fi
+          jq -n --arg url "${DATA_URL}" '{dataUrl: $url}' > config.json
+          cat config.json
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

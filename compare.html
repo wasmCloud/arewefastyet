@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>compare runs · arewefastyet · wasmCloud</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" type="image/svg+xml" href="assets/wasmcloud-logo.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <a href="https://wasmcloud.com" class="brand-link" aria-label="wasmCloud">
+        <img class="logo" src="assets/wasmcloud-logo.svg" alt="wasmCloud" width="40" height="46">
+      </a>
+      <div class="brand-text">
+        <h1>are we fast yet? <span class="page-title">/ compare</span></h1>
+        <p class="kicker">wasmCloud · <code>wash-runtime</code> bench history</p>
+      </div>
+    </div>
+    <p class="lede">
+      Pick two runs of the same bench and see what changed.
+      Lower-is-better metrics colour regressions red; higher-is-better
+      (e.g. <code>http_throughput</code>, in req/s) flip the sense.
+    </p>
+    <nav class="tabs">
+      <a href="./">trends</a>
+      <a href="compare.html" class="active" aria-current="page">compare</a>
+      <a href="releases.html">releases</a>
+    </nav>
+    <div class="meta">
+      <span id="last-updated"></span>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/arewefastyet">site</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/wasmCloud/blob/main/scripts/bench/README.md">bench runbook</a>
+    </div>
+    <div class="controls">
+      <label>
+        bench
+        <select id="bench-sel"></select>
+      </label>
+      <label>
+        baseline (A)
+        <select id="run-a"></select>
+      </label>
+      <label>
+        compared (B)
+        <select id="run-b"></select>
+      </label>
+      <button id="swap-btn" type="button" title="swap A and B">A ↔ B</button>
+    </div>
+  </header>
+
+  <main id="diff" aria-live="polite"></main>
+
+  <footer>
+    <p>
+      Δ is <code>B − A</code> on the bench's natural metric.
+      A row is flagged as a regression if |Δ| ≥ 1 % AND the A/B 95 % CIs
+      do not overlap (otherwise the change is within criterion's noise floor).
+    </p>
+  </footer>
+
+  <script src="script.js"></script>
+  <script src="compare.js"></script>
+</body>
+</html>

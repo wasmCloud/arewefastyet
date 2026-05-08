@@ -1,0 +1,342 @@
+:root {
+  --fg: #111;
+  --bg: #fafafa;
+  --card: #fff;
+  --border: #e5e5e5;
+  --muted: #666;
+  /* wasmCloud brand green — used for links + active tab + small accents.
+     Chart line colors (p2/p3) intentionally stay distinct (cyan/purple)
+     so they keep their meaning across charts. */
+  --brand: #00bc8e;
+  --brand-soft: rgba(0, 188, 142, 0.15);
+  --link: var(--brand);
+  --p2: #06b6d4;
+  --p2-band: rgba(6, 182, 212, 0.15);
+  --p3: #a855f7;
+  --p3-band: rgba(168, 85, 247, 0.15);
+  --grid: rgba(0, 0, 0, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e5e5e5;
+    --bg: #0a0a0a;
+    --card: #141414;
+    --border: #262626;
+    --muted: #888;
+    /* Brand stays the same hex in dark mode — it's brand-fixed, not theme. */
+    --brand-soft: rgba(0, 188, 142, 0.20);
+    --grid: rgba(255, 255, 255, 0.07);
+    --p2-band: rgba(6, 182, 212, 0.20);
+    --p3-band: rgba(168, 85, 247, 0.20);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+code, .mono {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+}
+header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  letter-spacing: -0.02em;
+}
+header .lede {
+  margin: 1rem 0 0;
+  color: var(--muted);
+}
+
+/* Brand block: logo + title stack */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.brand-link { display: inline-flex; }
+.brand-link:hover .logo { transform: scale(1.05); }
+.brand .logo {
+  width: 2.5rem;
+  height: auto;
+  flex-shrink: 0;
+  transition: transform 120ms ease;
+}
+.brand-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.brand-text .kicker {
+  margin: 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand);
+  font-weight: 500;
+}
+@media (max-width: 480px) {
+  .brand .logo { width: 2rem; }
+  .brand-text .kicker { font-size: 0.75rem; letter-spacing: 0.06em; }
+}
+.meta {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.meta .sep { margin: 0 0.5rem; opacity: 0.5; }
+
+.controls {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+.controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+}
+.controls select {
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+}
+
+.bench-section { margin-bottom: 2.5rem; }
+.bench-section > h2 {
+  font-family: ui-monospace, monospace;
+  font-size: 1.05rem;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.chart-card header {
+  border: 0;
+  padding: 0 0 0.75rem 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.chart-card h3 {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.latest {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.latest .swatch {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 2px;
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+.latest .delta {
+  margin-left: 0.4em;
+  font-size: 0.85em;
+}
+.delta.regress, .num.regress, td.regress { color: #d4574e; }
+.delta.improve, .num.improve, td.improve { color: #2ea043; }
+.metric-hint {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-left: 0.5em;
+}
+
+/* tabs nav (header) */
+nav.tabs {
+  display: flex;
+  gap: 1.25rem;
+  margin: 1rem 0 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+nav.tabs a {
+  padding: 0.4rem 0;
+  margin-bottom: -1px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+nav.tabs a:hover { color: var(--fg); text-decoration: none; }
+nav.tabs a.active {
+  color: var(--fg);
+  border-bottom-color: var(--link);
+}
+
+/* compare-view: page title (smaller, dimmer suffix on the h1) */
+.page-title {
+  font-size: 0.65em;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+/* compare-view: run summary cards */
+.run-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 600px) {
+  .run-summary { grid-template-columns: 1fr; }
+}
+.run-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+.run-card h3 {
+  margin: 0 0 0.4rem 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 500;
+}
+.run-card.a h3 { color: var(--p2); }
+.run-card.b h3 { color: var(--p3); }
+.run-card .run-id { font-family: ui-monospace, monospace; font-size: 1.05rem; }
+.run-card .run-meta {
+  font-family: ui-monospace, monospace;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+/* compare-view: tally + diff table */
+.tally {
+  display: flex;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  font-family: ui-monospace, monospace;
+  color: var(--muted);
+}
+.tally-item.regress { color: #d4574e; }
+.tally-item.improve { color: #2ea043; }
+.tally-item.flat    { color: var(--muted); }
+
+table.diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+table.diff th {
+  text-align: left;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+table.diff th.num,
+table.diff td.num {
+  text-align: right;
+  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+table.diff td {
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+table.diff tbody tr:last-child td { border-bottom: 0; }
+table.diff td.mono { font-family: ui-monospace, monospace; }
+table.diff tr.row-regress { background: rgba(212, 87, 78, 0.06); }
+table.diff tr.row-improve { background: rgba(46, 160, 67, 0.06); }
+
+.muted { color: var(--muted); }
+
+.sig-badge {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+}
+.sig-badge.flat { color: var(--muted); }
+
+/* swap button on compare controls */
+#swap-btn {
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  align-self: end;
+}
+#swap-btn:hover { border-color: var(--muted); }
+
+.chart-wrapper {
+  position: relative;
+  height: 260px;
+}
+@media (max-width: 600px) {
+  .chart-wrapper { height: 220px; }
+}
+
+.empty, .error {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+.error { color: #d4574e; }
+
+footer {
+  border-top: 1px solid var(--border);
+  padding: 1.5rem clamp(1rem, 4vw, 3rem);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+footer p { margin: 0; }
