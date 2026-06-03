@@ -1,12 +1,14 @@
 # arewefastyet.wasmcloud.com
 
-Static trend site for the wasmCloud bench pipeline. Two views:
+Static trend site for the wasmCloud bench pipeline. Three views:
 
 - **[trends](./index.html)** — one Chart.js timeline per `(bench, group)`,
   overlaid with one line per `param` (e.g. `p2` and `p3`).
 - **[compare](./compare.html)** — pick two runs and see a per-row diff
   (Δ, %, significance). Deep-linkable via
   `?bench=<bench>&a=<runId>&b=<runId>`.
+- **[releases](./releases.html)** — semver-ordered timeline filtered
+  to release tags.
 
 This repo is **just the site**. Bench data is produced by the bench
 pipeline in [`wasmCloud/wasmCloud`](https://github.com/wasmCloud/wasmCloud)
@@ -56,8 +58,9 @@ semantic meaning across charts and shouldn't blend with brand chrome.
 
 ## Metric semantics (RPS vs latency)
 
-Each `(bench, group)` chooses its display unit from criterion's
-`Throughput` config:
+Display unit per chart depends on the row's harness:
+
+**Criterion** rows pick from `criterion::Throughput`:
 
 | criterion config | display | direction |
 |---|---|---|
@@ -68,6 +71,9 @@ Each `(bench, group)` chooses its display unit from criterion's
 So `http_throughput` (declared `Throughput::Elements(256)` in the bench)
 displays as Kreq/s and an *increase* is shown green. `cold_invocation`
 and `hot_invocation` are time benches and an *increase* is shown red.
+
+**gungraun** rows (`metric: "Ir"`) display as instructions
+(`K`/`M`/`G`-suffixed); lower is better, no CI band.
 
 ## One-time setup
 
@@ -114,7 +120,11 @@ python3 -m http.server 8000
 
 ## Data shape
 
-Each row in `history.json`:
+Three row shapes coexist in `history.json`. All share the same envelope
+(`bench`, `group`, `param`, `sha`, `ref`, `timestamp`, …); the metric
+fields differ.
+
+**Criterion** (`metric: "mean_ns"`):
 
 ```json
 {
@@ -130,6 +140,8 @@ Each row in `history.json`:
   "host": "wasmcloud-bench-01",
   "kernel": "6.8.0-100-generic",
   "cpus_online": 6,
+  "metric": "mean_ns",
+  "value": 78667741.74,
   "throughput": {"Elements": 256},
   "mean_ns": 78667741.74,
   "median_ns": 77841173.62,
@@ -139,12 +151,26 @@ Each row in `history.json`:
 }
 ```
 
-`HISTORY_MAX_AGE_DAYS` (set in the bench-side aggregator) caps the
-file at one year by default to keep it bounded as runs accumulate.
+**gungraun** (`metric: "Ir"`):
+
+```json
+{
+  "bench": "gungraun",
+  "group": "http",
+  "param": "hot_invocation.p2",
+  "metric": "Ir",
+  "value": 12345678
+}
+```
+
+The bench-side dedup key is `(sha, bench, group, param, run_attempt,
+metric)`. `HISTORY_MAX_AGE_DAYS` (set in the bench-side aggregator)
+caps the file at one year by default to keep it bounded as runs
+accumulate.
 
 ## Significance heuristic (compare view)
 
-A row is flagged as significant only if **both**:
+**Criterion rows** are flagged as significant only if **both**:
 
 1. `|%| ≥ 1` (the change is more than the noise floor we care about), and
 2. The 95 % CIs of A and B do **not** overlap.
@@ -152,6 +178,12 @@ A row is flagged as significant only if **both**:
 Otherwise the change is within criterion's variance and shown as flat
 (grey, with a `·` in the sig column). Conservative on purpose — better
 to under-flag than to call random noise a "regression".
+
+**gungraun rows** have no CI in our schema. They fall back to a
+stricter `|%| ≥ 2` threshold; below that, flat. gungraun is
+deterministic, so the threshold is mostly there to guard against
+floating-point artifacts at the bottom of the dynamic range — anything
+≥ 2 % is real signal.
 
 ## Files
 
@@ -162,6 +194,7 @@ to under-flag than to call random noise a "regression".
 | `style.css` | Shared styles; light/dark via `prefers-color-scheme`, mobile-friendly |
 | `script.js` | Trends logic + `loadHistory()` (fetches `config.json` then `dataUrl`, with sample fallback). Exports helpers on `window.AWFY`. |
 | `compare.js` | Compare-runs logic; consumes `window.AWFY` (IIFE-wrapped). |
+| `releases.html`, `releases.js` | Releases page: filters history to semver tags, x-axis is the (semver-ordered) tag, not time. |
 | `assets/wasmcloud-logo.svg` | Official wasmCloud hex-W mark (#00bc8e), used for header logo + favicon. |
 | `CNAME` | Pages reads this for the custom domain. |
 | `data/history.sample.json` | Synthetic 8-commit sample (clearly fake SHAs) — local-dev fallback. |

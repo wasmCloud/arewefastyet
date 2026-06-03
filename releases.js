@@ -7,7 +7,7 @@
 
 (() => {
 const {
-  describeMetric, toMetric, ciToMetric, significanceClass,
+  describeMetric, toMetric,
   escapeHtml, REPO_URL, loadHistory,
 } = window.AWFY;
 
@@ -128,7 +128,7 @@ function renderCard(bench, group, paramMap) {
 
   const subtitle = meta.higherIsBetter
     ? `<span class="metric-hint">${meta.unit} · higher is better</span>`
-    : `<span class="metric-hint">time · lower is better</span>`;
+    : `<span class="metric-hint">${meta.unit} · lower is better</span>`;
 
   card.innerHTML = `
     <header>

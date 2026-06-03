@@ -2,9 +2,21 @@
 //
 // Loads data/history.json (one JSON array of bench result rows), groups by
 // (bench, group, param), and renders one Chart.js timeline per (bench, group).
-// Per-chart unit is chosen from criterion's throughput config:
-//   throughput.Elements > 1  →  ops/sec  (higher is better)
-//   otherwise                →  time     (lower is better)
+//
+// Two row shapes coexist in history.json:
+//   - Criterion rows carry `metric: "mean_ns"` alongside the original
+//     `mean_ns` / `median_ns` / `ci_*` / `throughput` fields. Per-chart
+//     unit is derived from `throughput`:
+//       throughput.Elements > 1  →  ops/sec  (higher is better)
+//       throughput.Bytes    > 0  →  B/s      (higher is better)
+//       otherwise                →  time     (lower is better)
+//   - gungraun rows (gungraun bench) carry `metric: "Ir"` plus
+//     a unit-less `value` (instruction count). No CIs, no throughput.
+//     Rendered as instructions, lower is better.
+//
+// Older rows from before the schema bump have no `.metric` field; they
+// are treated as criterion rows (the per-row throughput logic still
+// works).
 
 const PALETTE = {
   p2: { line: '#06b6d4', band: 'rgba(6, 182, 212, 0.18)' },
@@ -144,7 +156,7 @@ function renderCard(bench, group, paramMap) {
 
   const subtitle = meta.higherIsBetter
     ? `<span class="metric-hint">${meta.unit} · higher is better</span>`
-    : `<span class="metric-hint">time · lower is better</span>`;
+    : `<span class="metric-hint">${meta.unit} · lower is better</span>`;
 
   card.innerHTML = `
     <header>
@@ -246,6 +258,17 @@ function renderCard(bench, group, paramMap) {
 // ── metric helpers (also used by compare.js) ──────────────────────────────
 
 function describeMetric(row) {
+  // gungraun: deterministic instruction count, lower is better.
+  // Detected by the explicit `metric` field rather than bench name so the
+  // moment we add more gungraun benches the same path picks them up.
+  if (row && row.metric === 'Ir') {
+    return {
+      kind: 'instructions',
+      format: formatInstructions,
+      unit: 'instructions',
+      higherIsBetter: false,
+    };
+  }
   const t = row && row.throughput;
   if (t && typeof t.Elements === 'number' && t.Elements > 1) {
     return {
@@ -274,12 +297,15 @@ function describeMetric(row) {
 }
 
 function toMetric(row, meta) {
-  if (meta.kind === 'rps')  return (meta.elements * 1e9) / row.mean_ns;
-  if (meta.kind === 'bps')  return (meta.bytes    * 1e9) / row.mean_ns;
+  if (meta.kind === 'rps')          return (meta.elements * 1e9) / row.mean_ns;
+  if (meta.kind === 'bps')          return (meta.bytes    * 1e9) / row.mean_ns;
+  if (meta.kind === 'instructions') return row.value;
   return row.mean_ns;
 }
 
 // CI bounds invert when converting time → rate: low time = high rate, etc.
+// gungraun doesn't emit a CI; we return nulls so the renderer hides the
+// CI band rather than drawing it from undefined values.
 function ciToMetric(row, meta) {
   if (meta.kind === 'rps') {
     return {
@@ -292,6 +318,9 @@ function ciToMetric(row, meta) {
       low:  row.ci_high_ns ? (meta.bytes * 1e9) / row.ci_high_ns : null,
       high: row.ci_low_ns  ? (meta.bytes * 1e9) / row.ci_low_ns  : null,
     };
+  }
+  if (meta.kind === 'instructions') {
+    return { low: null, high: null };
   }
   return { low: row.ci_low_ns, high: row.ci_high_ns };
 }
@@ -329,6 +358,19 @@ function formatBps(bps) {
   if (bps >= 1e6) return `${(bps / 1e6).toFixed(2)} MB/s`;
   if (bps >= 1e3) return `${(bps / 1e3).toFixed(2)} KB/s`;
   return `${bps.toFixed(0)} B/s`;
+}
+
+// SI-prefix instruction counts. K = 1e3, M = 1e6, G = 1e9 — matching how
+// cachegrind / gungraun themselves print summary lines. This is the
+// view metric: 12_345_678 → "12.35 M".
+function formatInstructions(n) {
+  if (n == null || isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(2)} G`;
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(2)} M`;
+  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(2)} K`;
+  return `${sign}${Math.round(abs)}`;
 }
 
 function relTime(d) {
@@ -435,6 +477,7 @@ function annotationsForChart(annotations, paramMap) {
 // Exported for compare.js / releases.js. They all load script.js first.
 window.AWFY = {
   describeMetric, toMetric, ciToMetric, significanceClass,
-  formatNs, formatRps, formatBps, escapeHtml, relTime, REPO_URL,
+  formatNs, formatRps, formatBps, formatInstructions,
+  escapeHtml, relTime, REPO_URL,
   loadHistory, loadAnnotations, annotationsForChart,
 };

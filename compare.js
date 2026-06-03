@@ -2,9 +2,11 @@
 //
 // Pick a bench + two runs (A, B) and render a diff table:
 //   - one row per (group, param)
-//   - A and B values in the bench's natural metric (time or req/s)
+//   - A and B values in the bench's natural metric (time, req/s, or
+//     instruction count)
 //   - Δ and % colored by significance (regress / improve / flat)
-//   - significance flag uses CI overlap as a noise filter
+//   - significance flag uses CI overlap as a noise filter for criterion
+//     rows; gungraun rows have no CI, so they fall back to a |%| threshold.
 //
 // URL is deep-linkable:  compare.html?bench=http_invoke&a=<runId>&b=<runId>
 
@@ -203,19 +205,34 @@ function renderDiff() {
     const delta = bV - aV;
     const pct = aV !== 0 ? (delta / aV) * 100 : 0;
 
-    // Significance: |%| >= 1 AND CIs don't overlap.
-    const ciOverlap = aCi.high != null && bCi.low != null && aCi.low != null && bCi.high != null
-      ? !(aCi.high < bCi.low || bCi.high < aCi.low)
-      : true;
-    const significant = Math.abs(pct) >= 1 && !ciOverlap;
+    // Significance: criterion has CIs (significant iff |%| >= 1 AND CIs
+    // don't overlap). gungraun rows have no CI in our schema; fall back
+    // to a stricter |%| threshold there. gungraun is deterministic, so
+    // any |%| ≥ 2 is real signal — the threshold mostly guards against
+    // floating-point artifacts at the bottom of the dynamic range.
+    const haveCi = aCi.high != null && bCi.low != null && aCi.low != null && bCi.high != null;
+    let significant;
+    let sigTitle;
+    if (haveCi) {
+      const ciOverlap = !(aCi.high < bCi.low || bCi.high < aCi.low);
+      significant = Math.abs(pct) >= 1 && !ciOverlap;
+      sigTitle = significant
+        ? "significant: |%| ≥ 1 and 95 % CIs don't overlap"
+        : "within criterion's noise floor";
+    } else {
+      significant = Math.abs(pct) >= 2;
+      sigTitle = significant
+        ? '|%| ≥ 2 (no CI on this metric — using a stricter threshold)'
+        : '|%| < 2 (no CI on this metric)';
+    }
     const sigClass = significant ? significanceClass(pct, meta.higherIsBetter) : '';
     if (sigClass === 'regress') regressionCount++;
     if (sigClass === 'improve') improvementCount++;
 
     const sign = delta > 0 ? '+' : '';
     const sigBadge = significant
-      ? `<span class="sig-badge ${sigClass}" title="significant: |%| ≥ 1 and 95 % CIs don't overlap">●</span>`
-      : `<span class="sig-badge flat" title="within criterion's noise floor">·</span>`;
+      ? `<span class="sig-badge ${sigClass}" title="${escapeHtml(sigTitle)}">●</span>`
+      : `<span class="sig-badge flat" title="${escapeHtml(sigTitle)}">·</span>`;
 
     return `<tr class="row-${sigClass || 'flat'}">
       <td class="mono">${escapeHtml(group)}</td>

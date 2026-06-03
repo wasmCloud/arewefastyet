@@ -23,6 +23,7 @@
     <p class="lede">
       Bench host: <code>wasmcloud-bench-01</code>
       (AMD Ryzen 5 3600, 6c, <code>nosmt</code>, governor=performance).
+      In-process benches via criterion / gungraun.
     </p>
     <nav class="tabs">
       <a href="./" class="active" aria-current="page">trends</a>
@@ -57,9 +58,10 @@
 
   <footer>
     <p>
-      Lines are the criterion <code>point_estimate</code> (mean). Per-card
-      header shows whether higher or lower is better.
-      Hover a point for the 95 % CI; click to open the workflow run.
+      Criterion lines are the <code>point_estimate</code> (mean) with a 95 %
+      CI band on hover; gungraun lines are deterministic instruction
+      counts (no CI). Per-card header shows whether higher or lower is
+      better. Click a point to open the workflow run.
       Dashed vertical lines mark <a href="https://github.com/wasmCloud/arewefastyet/blob/main/data/annotations.json">annotated commits</a>
       (perf-relevant landings); hover one to read the note, click to open the linked PR.
     </p>
