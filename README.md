@@ -1,4 +1,4 @@
-# arewefastyet.wasmcloud.com
+# arewefastyet.wasmcloud.com (https://wasmcloud.github.io/arewefastyet/)
 
 Static trend site for the wasmCloud bench pipeline. Three views:
 
