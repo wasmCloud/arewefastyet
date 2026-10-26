@@ -139,8 +139,9 @@ function renderCard(bench, group, paramMap) {
   card.id = anchorId(bench, group);
 
   const params = Object.keys(paramMap).sort();
-  // All rows in a (bench, group) share the same criterion throughput config,
-  // so we can pick metric semantics from any one row.
+  // All rows in a chart share the same metric semantics (criterion
+  // throughput config, or a self-describing row's unit), so any one row
+  // will do.
   const meta = describeMetric(paramMap[params[0]][0]);
 
   const latestSpans = params.map((p, i) => {
@@ -447,9 +448,9 @@ function anchorLink(id, label) {
 
 // Charts are built after history loads, so the browser's own jump to the
 // URL fragment has already happened (and found nothing). Redo it once
-// they exist.
+// they exist. anchorId() output is URL-safe, so the hash needs no decoding.
 function scrollToHash() {
-  const id = decodeURIComponent(location.hash.slice(1));
+  const id = location.hash.slice(1);
   if (id) document.getElementById(id)?.scrollIntoView();
 }
 

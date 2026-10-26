@@ -2,8 +2,8 @@
 //
 // Filters history to ref values that look like release tags (semver),
 // orders them by semver (not by time), and renders one Chart.js card per
-// (bench, group). Each release is one categorical x-tick; latest run for
-// that tag wins if there are duplicates.
+// (bench, chartGroup). Each release is one categorical x-tick; latest run
+// for that tag wins if there are duplicates.
 
 (() => {
 const {
