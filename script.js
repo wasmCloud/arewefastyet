@@ -71,11 +71,13 @@ async function main() {
 
   // ?ref= and ?bench= preselect the filters, so a shared link can show
   // e.g. a PR's run beside main's (?ref=all). Kept in sync as they change.
+  // A missing or unknown value means the default, so the URL wins over any
+  // selection the browser restores on reload or back/forward.
   const filters = [['ref', refSel, 'main'], ['bench', benchSel, 'all']];
   const query = new URLSearchParams(location.search);
-  for (const [key, sel] of filters) {
+  for (const [key, sel, dflt] of filters) {
     const v = query.get(key);
-    if (v && [...sel.options].some(o => o.value === v)) sel.value = v;
+    sel.value = v && [...sel.options].some(o => o.value === v) ? v : dflt;
   }
   const onFilterChange = () => {
     const q = new URLSearchParams(location.search);
