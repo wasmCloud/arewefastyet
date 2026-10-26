@@ -8,6 +8,7 @@
 (() => {
 const {
   describeMetric, toMetric, chartGroup,
+  anchorId, anchorLink, scrollToHash,
   escapeHtml, REPO_URL, loadHistory,
 } = window.AWFY;
 
@@ -53,6 +54,7 @@ async function main() {
 
   setLastUpdated(releaseRows);
   render(releaseRows);
+  scrollToHash();
 }
 
 function setLastUpdated(rows) {
@@ -96,7 +98,8 @@ function render(rows) {
   for (const bench of Object.keys(tree).sort()) {
     const sec = document.createElement('section');
     sec.className = 'bench-section';
-    sec.innerHTML = `<h2>${escapeHtml(bench)}</h2>`;
+    sec.id = anchorId(bench);
+    sec.innerHTML = `<h2>${anchorLink(sec.id, bench)}</h2>`;
     for (const group of Object.keys(tree[bench]).sort()) {
       sec.appendChild(renderCard(bench, group, tree[bench][group]));
     }
@@ -107,6 +110,7 @@ function render(rows) {
 function renderCard(bench, group, paramMap) {
   const card = document.createElement('div');
   card.className = 'chart-card';
+  card.id = anchorId(bench, group);
 
   const params = Object.keys(paramMap).sort();
 
@@ -132,7 +136,7 @@ function renderCard(bench, group, paramMap) {
 
   card.innerHTML = `
     <header>
-      <h3>${escapeHtml(group)} ${subtitle}</h3>
+      <h3>${anchorLink(card.id, group)} ${subtitle}</h3>
       <div class="latest">${latestSpans}</div>
     </header>
     <div class="chart-wrapper"><canvas></canvas></div>

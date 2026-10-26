@@ -73,6 +73,7 @@ async function main() {
 
   setLastUpdated(allRows);
   render();
+  scrollToHash();
 }
 
 function setLastUpdated(rows) {
@@ -123,7 +124,8 @@ function render() {
   for (const bench of Object.keys(tree).sort()) {
     const sec = document.createElement('section');
     sec.className = 'bench-section';
-    sec.innerHTML = `<h2>${escapeHtml(bench)}</h2>`;
+    sec.id = anchorId(bench);
+    sec.innerHTML = `<h2>${anchorLink(sec.id, bench)}</h2>`;
     for (const group of Object.keys(tree[bench]).sort()) {
       sec.appendChild(renderCard(bench, group, tree[bench][group]));
     }
@@ -134,6 +136,7 @@ function render() {
 function renderCard(bench, group, paramMap) {
   const card = document.createElement('div');
   card.className = 'chart-card';
+  card.id = anchorId(bench, group);
 
   const params = Object.keys(paramMap).sort();
   // All rows in a (bench, group) share the same criterion throughput config,
@@ -164,7 +167,7 @@ function renderCard(bench, group, paramMap) {
 
   card.innerHTML = `
     <header>
-      <h3>${escapeHtml(group)} ${subtitle}</h3>
+      <h3>${anchorLink(card.id, group)} ${subtitle}</h3>
       <div class="latest">${latestSpans}</div>
     </header>
     <div class="chart-wrapper"><canvas></canvas></div>
@@ -432,6 +435,24 @@ function relTime(d) {
   return `${Math.round(sec / 86400)} d ago`;
 }
 
+// Fragment id for a bench section or chart card, so either can be linked
+// to directly: "scale_density", "scale_density-density-served_workloads".
+function anchorId(...parts) {
+  return parts.join('-').toLowerCase().replace(/[^a-z0-9_]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function anchorLink(id, label) {
+  return `<a class="anchor" href="#${id}">${escapeHtml(label)}</a>`;
+}
+
+// Charts are built after history loads, so the browser's own jump to the
+// URL fragment has already happened (and found nothing). Redo it once
+// they exist.
+function scrollToHash() {
+  const id = decodeURIComponent(location.hash.slice(1));
+  if (id) document.getElementById(id)?.scrollIntoView();
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -529,6 +550,6 @@ function annotationsForChart(annotations, paramMap) {
 window.AWFY = {
   describeMetric, toMetric, ciToMetric, significanceClass, chartGroup,
   formatNs, formatRps, formatBps, formatInstructions, formatBytes,
-  escapeHtml, relTime, REPO_URL,
+  escapeHtml, relTime, REPO_URL, anchorId, anchorLink, scrollToHash,
   loadHistory, loadAnnotations, annotationsForChart,
 };
