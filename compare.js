@@ -1,12 +1,13 @@
 // arewefastyet.wasmcloud.com — compare-runs view
 //
 // Pick a bench + two runs (A, B) and render a diff table:
-//   - one row per (group, param)
-//   - A and B values in the bench's natural metric (time, req/s, or
-//     instruction count)
+//   - one row per (group, param); self-describing rows split by metric
+//   - A and B values in the bench's natural metric (time, req/s,
+//     instruction count, or the row's own unit)
 //   - Δ and % colored by significance (regress / improve / flat)
 //   - significance flag uses CI overlap as a noise filter for criterion
-//     rows; gungraun rows have no CI, so they fall back to a |%| threshold.
+//     rows; gungraun and self-describing rows have no CI, so they fall
+//     back to a |%| threshold.
 //
 // URL is deep-linkable:  compare.html?bench=http_invoke&a=<runId>&b=<runId>
 
@@ -206,10 +207,11 @@ function renderDiff() {
     const pct = aV !== 0 ? (delta / aV) * 100 : 0;
 
     // Significance: criterion has CIs (significant iff |%| >= 1 AND CIs
-    // don't overlap). gungraun rows have no CI in our schema; fall back
-    // to a stricter |%| threshold there. gungraun is deterministic, so
-    // any |%| ≥ 2 is real signal — the threshold mostly guards against
-    // floating-point artifacts at the bottom of the dynamic range.
+    // don't overlap). gungraun and self-describing rows have no CI in our
+    // schema; fall back to a stricter |%| threshold there. gungraun is
+    // deterministic, so any |%| ≥ 2 is real signal — the threshold mostly
+    // guards against floating-point artifacts at the bottom of the dynamic
+    // range. 2 % is also bench-tools' own noise floor for k6/density rows.
     const haveCi = aCi.high != null && bCi.low != null && aCi.low != null && bCi.high != null;
     let significant;
     let sigTitle;

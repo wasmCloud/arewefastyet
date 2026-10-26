@@ -149,7 +149,7 @@ main {
 .bench-section, .chart-card { scroll-margin-top: 1rem; }
 a.anchor { color: inherit; text-decoration: none; }
 a.anchor::after {
-  content: ' #';
+  content: ' #' / '';
   color: var(--brand);
   opacity: 0;
   transition: opacity 0.15s;
