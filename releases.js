@@ -7,7 +7,7 @@
 
 (() => {
 const {
-  describeMetric, toMetric,
+  describeMetric, toMetric, chartGroup,
   escapeHtml, REPO_URL, loadHistory,
 } = window.AWFY;
 
@@ -85,7 +85,7 @@ function render(rows) {
   const tree = {};
   for (const r of filtered) {
     const groups = (tree[r.bench] ??= {});
-    const params = (groups[r.group] ??= {});
+    const params = (groups[chartGroup(r)] ??= {});
     const refMap = (params[r.param] ??= new Map());
     const existing = refMap.get(r.ref);
     if (!existing || new Date(r.timestamp) > new Date(existing.timestamp)) {

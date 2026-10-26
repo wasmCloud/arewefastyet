@@ -14,7 +14,7 @@
 // declares at module scope (both are loaded on this page).
 (() => {
 const {
-  describeMetric, toMetric, ciToMetric, significanceClass,
+  describeMetric, toMetric, ciToMetric, significanceClass, chartGroup,
   escapeHtml, REPO_URL, loadHistory,
 } = window.AWFY;
 
@@ -158,8 +158,8 @@ function renderDiff() {
   const aRun = aRows[0];
   const bRun = bRows[0];
 
-  const aMap = new Map(aRows.map(r => [`${r.group}/${r.param}`, r]));
-  const bMap = new Map(bRows.map(r => [`${r.group}/${r.param}`, r]));
+  const aMap = new Map(aRows.map(r => [`${chartGroup(r)}/${r.param}`, r]));
+  const bMap = new Map(bRows.map(r => [`${chartGroup(r)}/${r.param}`, r]));
   const keys = [...new Set([...aMap.keys(), ...bMap.keys()])].sort();
 
   const summary = `
