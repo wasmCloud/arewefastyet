@@ -10,5 +10,11 @@
     "title": "p3 hot-path store pooling",
     "body": "Reuse stores across requests for the p3 throughput path; expected +RPS on http_throughput",
     "url": "https://github.com/wasmCloud/wasmCloud/pull/5678"
+  },
+  {
+    "sha": "22615d2454047e5fcf3a3f60d3389e326e2ec606",
+    "title": "scale_density starts spawned per core",
+    "body": "Bench change, not a host change: starts now run on every host worker. starts_per_sec and cpu_ms_per_start step up from here.",
+    "url": "https://github.com/wasmCloud/wasmCloud/pull/5739"
   }
 ]
