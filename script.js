@@ -68,8 +68,26 @@ async function main() {
     opt.value = b; opt.textContent = b;
     benchSel.appendChild(opt);
   }
-  benchSel.addEventListener('change', render);
-  document.getElementById('ref-filter').addEventListener('change', render);
+
+  // ?ref= and ?bench= preselect the filters, so a shared link can show
+  // e.g. a PR's run beside main's (?ref=all). Kept in sync as they change.
+  const filters = [['ref', refSel, 'main'], ['bench', benchSel, 'all']];
+  const query = new URLSearchParams(location.search);
+  for (const [key, sel] of filters) {
+    const v = query.get(key);
+    if (v && [...sel.options].some(o => o.value === v)) sel.value = v;
+  }
+  const onFilterChange = () => {
+    const q = new URLSearchParams(location.search);
+    for (const [key, sel, dflt] of filters) {
+      if (sel.value === dflt) q.delete(key); else q.set(key, sel.value);
+    }
+    const search = q.toString();
+    history.replaceState(null, '', `${location.pathname}${search ? `?${search}` : ''}${location.hash}`);
+    render();
+  };
+  benchSel.addEventListener('change', onFilterChange);
+  refSel.addEventListener('change', onFilterChange);
 
   setLastUpdated(allRows);
   render();
