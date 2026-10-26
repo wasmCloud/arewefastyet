@@ -13,6 +13,10 @@
 //   - gungraun rows (gungraun bench) carry `metric: "Ir"` plus
 //     a unit-less `value` (instruction count). No CIs, no throughput.
 //     Rendered as instructions, lower is better.
+//   - Self-describing rows (scale_density, k6) carry `metric`, `value`,
+//     their own `unit` and `better: "higher" | "lower"`. One (group, param)
+//     holds several metrics, so these chart per (group, metric) — see
+//     chartGroup().
 //
 // Older rows from before the schema bump have no `.metric` field; they
 // are treated as criterion rows (the per-row throughput logic still
@@ -106,7 +110,7 @@ function render() {
 
   const tree = {};
   for (const r of rows) {
-    (((tree[r.bench] ??= {})[r.group] ??= {})[r.param] ??= []).push(r);
+    (((tree[r.bench] ??= {})[chartGroup(r)] ??= {})[r.param] ??= []).push(r);
   }
   for (const groups of Object.values(tree)) {
     for (const params of Object.values(groups)) {
@@ -257,7 +261,28 @@ function renderCard(bench, group, paramMap) {
 
 // ── metric helpers (also used by compare.js) ──────────────────────────────
 
+// Self-describing rows name their own unit and direction rather than
+// relying on criterion's throughput config.
+function isSelfDescribing(row) {
+  return row != null && row.unit != null && (row.better === 'higher' || row.better === 'lower');
+}
+
+// The chart (or compare-table group) a row belongs to. Criterion and
+// gungraun rows hold one metric per group; self-describing rows hold
+// several, so they split by metric to keep one unit per chart.
+function chartGroup(row) {
+  return isSelfDescribing(row) ? `${row.group} · ${row.metric}` : row.group;
+}
+
 function describeMetric(row) {
+  if (isSelfDescribing(row)) {
+    return {
+      kind: 'value',
+      format: formatterForUnit(row.unit),
+      unit: row.unit,
+      higherIsBetter: row.better === 'higher',
+    };
+  }
   // gungraun: deterministic instruction count, lower is better.
   // Detected by the explicit `metric` field rather than bench name so the
   // moment we add more gungraun benches the same path picks them up.
@@ -300,6 +325,7 @@ function toMetric(row, meta) {
   if (meta.kind === 'rps')          return (meta.elements * 1e9) / row.mean_ns;
   if (meta.kind === 'bps')          return (meta.bytes    * 1e9) / row.mean_ns;
   if (meta.kind === 'instructions') return row.value;
+  if (meta.kind === 'value')        return row.value;
   return row.mean_ns;
 }
 
@@ -319,7 +345,7 @@ function ciToMetric(row, meta) {
       high: row.ci_low_ns  ? (meta.bytes * 1e9) / row.ci_low_ns  : null,
     };
   }
-  if (meta.kind === 'instructions') {
+  if (meta.kind === 'instructions' || meta.kind === 'value') {
     return { low: null, high: null };
   }
   return { low: row.ci_low_ns, high: row.ci_high_ns };
@@ -371,6 +397,31 @@ function formatInstructions(n) {
   if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(2)} M`;
   if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(2)} K`;
   return `${sign}${Math.round(abs)}`;
+}
+
+// Formatter for a self-describing row's `unit`. Unknown units fall back
+// to an SI-scaled number with the unit appended.
+function formatterForUnit(unit) {
+  if (unit === 'ms') return ms => (ms == null || isNaN(ms) ? '—' : formatNs(ms * 1e6));
+  if (unit === 'ns') return formatNs;
+  if (unit === 'B') return formatBytes;
+  return n => {
+    if (n == null || isNaN(n)) return '—';
+    const abs = Math.abs(n);
+    const num = abs < 1e3 && !Number.isInteger(n) ? n.toFixed(2) : formatInstructions(n);
+    return `${num} ${unit}`;
+  };
+}
+
+// IEC-scaled byte sizes, matching how scale_density prints its footprint.
+function formatBytes(b) {
+  if (b == null || isNaN(b)) return '—';
+  const sign = b < 0 ? '-' : '';
+  const abs = Math.abs(b);
+  if (abs >= 2 ** 30) return `${sign}${(abs / 2 ** 30).toFixed(2)} GiB`;
+  if (abs >= 2 ** 20) return `${sign}${(abs / 2 ** 20).toFixed(2)} MiB`;
+  if (abs >= 2 ** 10) return `${sign}${(abs / 2 ** 10).toFixed(2)} KiB`;
+  return `${sign}${Math.round(abs)} B`;
 }
 
 function relTime(d) {
@@ -476,8 +527,8 @@ function annotationsForChart(annotations, paramMap) {
 
 // Exported for compare.js / releases.js. They all load script.js first.
 window.AWFY = {
-  describeMetric, toMetric, ciToMetric, significanceClass,
-  formatNs, formatRps, formatBps, formatInstructions,
+  describeMetric, toMetric, ciToMetric, significanceClass, chartGroup,
+  formatNs, formatRps, formatBps, formatInstructions, formatBytes,
   escapeHtml, relTime, REPO_URL,
   loadHistory, loadAnnotations, annotationsForChart,
 };
