@@ -7,7 +7,7 @@
 
 (() => {
 const {
-  describeMetric, toMetric, chartGroup,
+  describeMetric, toMetric, chartGroup, hasOwnView,
   anchorId, anchorLink, scrollToHash,
   escapeHtml, REPO_URL, loadHistory, rowHost, fillHostSelect,
 } = window.AWFY;
@@ -42,7 +42,7 @@ async function main() {
     return;
   }
 
-  const releaseRows = allRows.filter(r => TAG_RE.test(r.ref));
+  const releaseRows = allRows.filter(r => TAG_RE.test(r.ref) && !hasOwnView(r));
 
   // bench filter from release rows only (not full history)
   const benches = [...new Set(releaseRows.map(r => r.bench))].sort();

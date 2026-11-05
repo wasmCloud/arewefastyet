@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>gpu · arewefastyet · wasmCloud</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="wasmCloud GPU benchmarks: how far wasi:webgpu is from native, and serverless GPU memory vs vLLM">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" type="image/svg+xml" href="assets/wasmcloud-logo.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <a href="https://wasmcloud.com" class="brand-link" aria-label="wasmCloud">
+        <img class="logo" src="assets/wasmcloud-logo.svg" alt="wasmCloud" width="40" height="46">
+      </a>
+      <div class="brand-text">
+        <h1>are we fast yet? <span class="page-title">/ gpu</span></h1>
+        <p class="kicker">wasmCloud · <code>wasi:webgpu</code> bench history</p>
+      </div>
+    </div>
+    <p class="lede">
+      One model on one GPU, three ways: the vendor backend, WebGPU as a native
+      binary, and the same WebGPU build as a <code>wasm32-wasip3</code>
+      component in <code>wash-runtime</code>. Then several models taking turns
+      on one GPU as serverless workloads, beside vLLM holding one.
+    </p>
+    <nav class="tabs">
+      <a href="./">trends</a>
+      <a href="compare.html">compare</a>
+      <a href="releases.html">releases</a>
+      <a href="gpu.html" class="active" aria-current="page">gpu</a>
+    </nav>
+    <div class="meta">
+      <span id="last-updated">loading…</span>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/arewefastyet">site</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/wasmCloud/blob/main/scripts/gpubench/README.md">gpubench runbook</a>
+    </div>
+    <div class="controls">
+      <label>
+        ref
+        <select id="ref-filter">
+          <option value="main">main only</option>
+          <option value="all">all refs</option>
+        </select>
+      </label>
+      <label>
+        box
+        <select id="box-filter">
+          <option value="all">all</option>
+        </select>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="smoke-toggle">
+        include smoke runs
+      </label>
+    </div>
+  </header>
+
+  <main id="gpu" aria-live="polite"></main>
+
+  <footer>
+    <p>
+      Bars are the latest run per box; tok/s is <code>llama-bench</code>'s
+      average over its repetitions. GPU memory is measured over the idle
+      baseline sampled before each run, so the box's other GPU users drop out.
+      Smoke runs (<code>run.sh --smoke</code>: the 0.5B model, short tests) are
+      hidden unless included above. Click a trend point to open its workflow run;
+      dashed vertical lines mark <a href="https://github.com/wasmCloud/arewefastyet/blob/main/data/annotations.json">annotated commits</a>.
+    </p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+          integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"
+          integrity="sha384-cVMg8E3QFwTvGCDuK+ET4PD341jF3W8nO1auiXfuZNQkzbUUiBGLsIQUE+b1mxws"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"
+          integrity="sha384-3N9GHhCtN3CQef6tNfqgZlv7sQLYIkcChN+uaTZ7xVdzKYp/SjBNPxa92+hM7EAY"
+          crossorigin="anonymous"></script>
+  <script src="script.js"></script>
+  <script src="gpu.js"></script>
+</body>
+</html>
