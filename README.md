@@ -1,6 +1,6 @@
 # [wasmcloud.github.io/arewefastyet](https://wasmcloud.github.io/arewefastyet/)
 
-Static trend site for the wasmCloud bench pipeline. Three views:
+Static trend site for the wasmCloud bench pipeline. Four views:
 
 - **[trends](./index.html)** — one Chart.js timeline per `(bench, group)`,
   overlaid with one line per `param` (e.g. `p2` and `p3`).
@@ -9,6 +9,11 @@ Static trend site for the wasmCloud bench pipeline. Three views:
   `?bench=<bench>&a=<runId>&b=<runId>`.
 - **[releases](./releases.html)** — semver-ordered timeline filtered
   to release tags.
+- **[gpu](./gpu.html)** — the `gpubench` rows (`bench-tools gpu jsonl`):
+  tok/s for the vendor, webgpu-native and wasm steps per box with the gaps
+  between them, the wasm guest's memory beside the model's size, and GPU
+  memory over time for serverless wasmCloud turns against vLLM. Trends and
+  releases leave these rows out; `?bench=gpubench` on trends opens this page.
 
 This repo is **just the site**. Bench data is produced by the bench
 pipeline in [`wasmCloud/wasmCloud`](https://github.com/wasmCloud/wasmCloud)
@@ -208,9 +213,10 @@ floating-point artifacts at the bottom of the dynamic range — anything
 | `script.js` | Trends logic + `loadHistory()` (fetches `config.json` then `dataUrl`, with sample fallback). Exports helpers on `window.AWFY`. |
 | `compare.js` | Compare-runs logic; consumes `window.AWFY` (IIFE-wrapped). |
 | `releases.html`, `releases.js` | Releases page: filters history to semver tags, x-axis is the (semver-ordered) tag, not time. |
+| `gpu.html`, `gpu.js` | GPU page: renders `bench: "gpubench"` rows per box; consumes `window.AWFY`. |
 | `assets/wasmcloud-logo.svg` | Official wasmCloud hex-W mark (#00bc8e), used for header logo + favicon. |
 | `CNAME` | Pages reads this for the custom domain. |
-| `data/history.sample.json` | Synthetic 8-commit sample (clearly fake SHAs), with a few `aws-c7i` host rows — local-dev fallback. |
+| `data/history.sample.json` | Synthetic 8-commit sample (clearly fake SHAs) — local-dev fallback. Includes a few `aws-c7i` host rows, and synthetic `gpubench` rows (`run_id: sample-gpu-*`) for a metal and a cuda box over three commits, plus one smoke run. |
 | `.github/workflows/deploy.yml` | On push/dispatch: write `config.json` from `vars.DATA_URL` → deploy-pages. |
 | `.gitignore` | Excludes the runtime-generated `config.json`. |
 

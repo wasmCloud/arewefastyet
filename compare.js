@@ -192,7 +192,10 @@ function renderDiff() {
   const tbody = keys.map(key => {
     const a = aMap.get(key);
     const b = bMap.get(key);
-    const [group, param] = key.split('/');
+    // Params can hold a '/' (gpubench's `cuda/wasm`); groups don't.
+    const cut = key.indexOf('/');
+    const group = key.slice(0, cut);
+    const param = key.slice(cut + 1);
 
     if (!a || !b) {
       return `<tr>

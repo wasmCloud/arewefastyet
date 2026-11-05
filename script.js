@@ -36,8 +36,17 @@ const FALLBACK = [
 const REPO_URL = 'https://github.com/wasmCloud/wasmCloud';
 
 // The runner label of the host a row ran on (wasmCloud's
-// .github/scripts/bench-host.mjs). Rows without one are the dedicated host's.
+// .github/scripts/bench-host.mjs). gpubench rows name it `box`; rows with
+// neither are the dedicated host's.
 const DEFAULT_HOST = 'hetzner';
+
+// Benches with a page of their own. The trends and releases pages leave
+// their rows out; a ?bench= link to one goes to its page.
+const OWN_VIEW = { gpubench: 'gpu.html' };
+
+function hasOwnView(row) {
+  return row != null && Object.hasOwn(OWN_VIEW, row.bench);
+}
 
 let allRows = [];
 let allAnnotations = [];
@@ -52,8 +61,14 @@ async function main() {
   // exported below). Both have #charts, but only the trends page has the
   // trends-specific #ref-filter — so use that as the trigger.
   if (!root || !refSel) return;
+  const own = new URLSearchParams(location.search).get('bench');
+  if (own && Object.hasOwn(OWN_VIEW, own)) {
+    location.replace(OWN_VIEW[own]);
+    return;
+  }
   try {
-    allRows = await loadHistory();
+    const rows = await loadHistory();
+    allRows = Array.isArray(rows) ? rows.filter(r => !hasOwnView(r)) : rows;
     allAnnotations = await loadAnnotations();
   } catch (err) {
     root.innerHTML = `<p class="error">Could not load history: ${escapeHtml(err.message)}</p>`;
@@ -296,7 +311,7 @@ function renderCard(bench, group, paramMap) {
 // ── host helpers (also used by compare.js / releases.js) ─────────────────
 
 function rowHost(row) {
-  return row.host_label ?? DEFAULT_HOST;
+  return row.host_label ?? row.box ?? DEFAULT_HOST;
 }
 
 // Host labels present in rows, the dedicated host first.
@@ -602,7 +617,7 @@ function annotationsForChart(annotations, paramMap) {
 window.AWFY = {
   describeMetric, toMetric, ciToMetric, significanceClass, chartGroup,
   formatNs, formatRps, formatBps, formatInstructions, formatBytes,
-  escapeHtml, relTime, REPO_URL, anchorId, anchorLink, scrollToHash,
+  formatterForUnit, hasOwnView, escapeHtml, relTime, REPO_URL, anchorId, anchorLink, scrollToHash,
   loadHistory, loadAnnotations, annotationsForChart,
   DEFAULT_HOST, rowHost, hostLabels, fillHostSelect,
 };
