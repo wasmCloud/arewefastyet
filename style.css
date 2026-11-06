@@ -16,11 +16,10 @@
   --p3-band: rgba(168, 85, 247, 0.15);
   --grid: rgba(0, 0, 0, 0.06);
   --regress: #d4574e;
-  /* gpu view: steps, serving sides and turn models (validated categorical sets). */
+  /* gpu view: steps, the serving side and turn models (validated categorical sets). */
   --step-vendor: #2a78d6;
   --step-webgpu-native: #eb6834;
   --step-wasm: #1baf7a;
-  --side-vllm: #2a78d6;
   --side-wasmcloud: #1baf7a;
   --mem-model: #8a8a86;
   --model-1: #6250d6;
@@ -42,7 +41,6 @@
     --step-vendor: #3987e5;
     --step-webgpu-native: #d95926;
     --step-wasm: #199e70;
-    --side-vllm: #3987e5;
     --side-wasmcloud: #199e70;
     --mem-model: #6f6f6b;
     --model-1: #9085e9;

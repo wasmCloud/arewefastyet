@@ -12,7 +12,7 @@ Static trend site for the wasmCloud bench pipeline. Four views:
 - **[gpu](./gpu.html)** — the `gpubench` rows (`bench-tools gpu jsonl`):
   tok/s for the vendor, webgpu-native and wasm steps per box with the gaps
   between them, the wasm guest's memory beside the model's size, and GPU
-  memory over time for serverless wasmCloud turns against vLLM. Trends and
+  memory over time for serverless wasmCloud turns. Trends and
   releases leave these rows out; `?bench=gpubench` on trends opens this page.
 
 This repo is **just the site**. Bench data is produced by the bench
