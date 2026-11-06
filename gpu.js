@@ -58,18 +58,23 @@ async function main() {
   const boxSel = document.getElementById('box-filter');
   const smoke = document.getElementById('smoke-toggle');
   for (const b of boxesOf(allRows)) boxSel.appendChild(new Option(b, b));
+  const prs = pullRefs(allRows);
+  const allOpt = refSel.querySelector('option[value="all"]');
+  for (const ref of prs) refSel.insertBefore(new Option(`PR #${pullNumber(ref)}`, ref), allOpt);
+  // main when it has runs; until then, the newest published pull request.
+  const refDefault = allRows.some(r => r.ref === 'main') ? 'main' : (prs[0] ?? 'all');
 
   // ?ref=, ?box= and ?smoke=1 preselect the controls; the URL wins over
   // whatever the browser restores.
   const q = new URLSearchParams(location.search);
-  for (const [key, sel, dflt] of [['ref', refSel, 'main'], ['box', boxSel, 'all']]) {
+  for (const [key, sel, dflt] of [['ref', refSel, refDefault], ['box', boxSel, 'all']]) {
     const v = q.get(key);
     sel.value = v && [...sel.options].some(o => o.value === v) ? v : dflt;
   }
   smoke.checked = q.get('smoke') === '1';
   const onChange = () => {
     const p = new URLSearchParams(location.search);
-    refSel.value === 'main' ? p.delete('ref') : p.set('ref', refSel.value);
+    refSel.value === refDefault ? p.delete('ref') : p.set('ref', refSel.value);
     boxSel.value === 'all' ? p.delete('box') : p.set('box', boxSel.value);
     smoke.checked ? p.set('smoke', '1') : p.delete('smoke');
     const s = p.toString();
@@ -615,7 +620,26 @@ function runLabel(r) {
     ? `<a href="${REPO_URL}/actions/runs/${encodeURIComponent(r.run_id)}" target="_blank" rel="noopener">${escapeHtml(r.short_sha)}</a>`
     : escapeHtml(r.short_sha);
   const smoke = r.smoke ? ' <span class="badge smoke" title="run.sh --smoke: 0.5B model, short tests">smoke</span>' : '';
-  return `<div class="run-label">latest: ${sha} · ${escapeHtml(r.ref)} · <span title="${escapeHtml(r.timestamp)}">${relTime(d)}</span>${smoke}</div>`;
+  const pr = pullNumber(r.ref);
+  const ref = pr
+    ? `<a href="${REPO_URL}/pull/${pr}" target="_blank" rel="noopener">PR #${pr}</a> <span class="badge pr" title="published with gpubench.yml's publish_pr: code that is not on main">unmerged</span>`
+    : escapeHtml(r.ref);
+  return `<div class="run-label">latest: ${sha} · ${ref} · <span title="${escapeHtml(r.timestamp)}">${relTime(d)}</span>${smoke}</div>`;
+}
+
+// gpubench.yml labels a pull request's rows `pull/N`.
+function pullNumber(ref) {
+  return /^pull\/(\d+)$/.exec(ref ?? '')?.[1] ?? null;
+}
+
+// Published pull-request refs, the most recently run first.
+function pullRefs(rows) {
+  const newest = new Map();
+  for (const r of rows) {
+    if (!pullNumber(r.ref)) continue;
+    if (!newest.has(r.ref) || r.timestamp > newest.get(r.ref)) newest.set(r.ref, r.timestamp);
+  }
+  return [...newest.keys()].sort((a, b) => newest.get(b).localeCompare(newest.get(a)));
 }
 
 function boxesOf(rows) {
