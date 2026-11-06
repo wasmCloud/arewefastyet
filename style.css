@@ -259,6 +259,15 @@ nav.tabs a.active {
   font-size: 0.85rem;
   margin-top: 0.25rem;
 }
+.host-note {
+  margin: 0 0 1rem 0;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid #d29922;
+  border-radius: 4px;
+  background: var(--card);
+  font-size: 0.9rem;
+}
 
 /* compare-view: tally + diff table */
 .tally {

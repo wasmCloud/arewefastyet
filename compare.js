@@ -16,7 +16,7 @@
 (() => {
 const {
   describeMetric, toMetric, ciToMetric, significanceClass, chartGroup,
-  escapeHtml, REPO_URL, loadHistory,
+  escapeHtml, REPO_URL, loadHistory, rowHost, hostLabels,
 } = window.AWFY;
 
 let allRows = [];
@@ -81,16 +81,18 @@ function refreshRunOptions(urlParams = new URLSearchParams(location.search)) {
   }
 
   // Honor URL ids if both refer to runs of the selected bench, else default
-  // to (newest, second-newest).
+  // to the newest and second-newest runs on one host (the dedicated host
+  // when it has runs).
   const urlA = urlParams.get('a');
   const urlB = urlParams.get('b');
   const ids = new Set(runs.map(r => r.run_id));
+  const host = hostLabels(runs.map(r => ({ host_label: r.host })))[0];
+  const hostRuns = runs.filter(r => r.host === host);
   if (urlA && ids.has(urlA)) aSel.value = urlA;
-  else if (runs.length >= 2) aSel.value = runs[1].run_id;
-  else if (runs.length === 1) aSel.value = runs[0].run_id;
+  else if (hostRuns.length) aSel.value = (hostRuns[1] ?? hostRuns[0]).run_id;
 
   if (urlB && ids.has(urlB)) bSel.value = urlB;
-  else if (runs.length >= 1) bSel.value = runs[0].run_id;
+  else if (hostRuns.length) bSel.value = hostRuns[0].run_id;
 }
 
 function uniqueRuns(rows) {
@@ -102,6 +104,7 @@ function uniqueRuns(rows) {
         sha: r.sha,
         short_sha: r.short_sha,
         ref: r.ref,
+        host: rowHost(r),
         timestamp: r.timestamp,
       });
     }
@@ -111,7 +114,7 @@ function uniqueRuns(rows) {
 
 function formatRun(r) {
   const d = new Date(r.timestamp).toISOString().slice(0, 16).replace('T', ' ');
-  return `${r.short_sha} · ${r.ref} · ${d}Z`;
+  return `${r.short_sha} · ${r.ref} · ${r.host} · ${d}Z`;
 }
 
 function syncUrl() {
@@ -158,6 +161,12 @@ function renderDiff() {
 
   const aRun = aRows[0];
   const bRun = bRows[0];
+  const aHost = rowHost(aRun);
+  const bHost = rowHost(bRun);
+  const hostNote = aHost === bHost ? '' : `
+    <p class="host-note">A ran on <code>${escapeHtml(aHost)}</code> and B on
+    <code>${escapeHtml(bHost)}</code>, so the differences include the hardware.</p>
+  `;
 
   const aMap = new Map(aRows.map(r => [`${chartGroup(r)}/${r.param}`, r]));
   const bMap = new Map(bRows.map(r => [`${chartGroup(r)}/${r.param}`, r]));
@@ -168,12 +177,12 @@ function renderDiff() {
       <div class="run-card a">
         <h3>baseline (A)</h3>
         <div class="run-id"><a href="${REPO_URL}/actions/runs/${escapeHtml(aRun.run_id)}" target="_blank" rel="noopener">${escapeHtml(aRun.short_sha)}</a></div>
-        <div class="run-meta">${escapeHtml(aRun.ref)} · ${formatTs(aRun.timestamp)}</div>
+        <div class="run-meta">${escapeHtml(aRun.ref)} · ${escapeHtml(aHost)} · ${formatTs(aRun.timestamp)}</div>
       </div>
       <div class="run-card b">
         <h3>compared (B)</h3>
         <div class="run-id"><a href="${REPO_URL}/actions/runs/${escapeHtml(bRun.run_id)}" target="_blank" rel="noopener">${escapeHtml(bRun.short_sha)}</a></div>
-        <div class="run-meta">${escapeHtml(bRun.ref)} · ${formatTs(bRun.timestamp)}</div>
+        <div class="run-meta">${escapeHtml(bRun.ref)} · ${escapeHtml(bHost)} · ${formatTs(bRun.timestamp)}</div>
       </div>
     </div>
   `;
@@ -257,6 +266,7 @@ function renderDiff() {
 
   root.innerHTML = `
     ${summary}
+    ${hostNote}
     ${tally}
     <table class="diff">
       <thead>

@@ -35,6 +35,10 @@ const FALLBACK = [
 
 const REPO_URL = 'https://github.com/wasmCloud/wasmCloud';
 
+// The runner label of the host a row ran on (wasmCloud's
+// .github/scripts/bench-host.mjs). Rows without one are the dedicated host's.
+const DEFAULT_HOST = 'hetzner';
+
 let allRows = [];
 let allAnnotations = [];
 const charts = new Map();
@@ -69,11 +73,14 @@ async function main() {
     benchSel.appendChild(opt);
   }
 
-  // ?ref= and ?bench= preselect the filters, so a shared link can show
-  // e.g. a PR's run beside main's (?ref=all). Kept in sync as they change.
-  // A missing or unknown value means the default, so the URL wins over any
-  // selection the browser restores on reload or back/forward.
-  const filters = [['ref', refSel, 'main'], ['bench', benchSel, 'all']];
+  const hostSel = document.getElementById('host-filter');
+  const defaultHost = fillHostSelect(hostSel, allRows);
+
+  // ?ref=, ?bench= and ?host= preselect the filters, so a shared link can
+  // show e.g. a PR's run beside main's (?ref=all). Kept in sync as they
+  // change. A missing or unknown value means the default, so the URL wins
+  // over any selection the browser restores on reload or back/forward.
+  const filters = [['ref', refSel, 'main'], ['bench', benchSel, 'all'], ['host', hostSel, defaultHost]];
   const query = new URLSearchParams(location.search);
   for (const [key, sel, dflt] of filters) {
     const v = query.get(key);
@@ -90,6 +97,7 @@ async function main() {
   };
   benchSel.addEventListener('change', onFilterChange);
   refSel.addEventListener('change', onFilterChange);
+  hostSel.addEventListener('change', onFilterChange);
 
   setLastUpdated(allRows);
   render();
@@ -111,10 +119,12 @@ function setLastUpdated(rows) {
 function render() {
   const refFilter = document.getElementById('ref-filter').value;
   const benchFilter = document.getElementById('bench-filter').value;
+  const hostFilter = document.getElementById('host-filter').value;
 
   const rows = allRows.filter(r => {
     if (refFilter !== 'all' && r.ref !== refFilter) return false;
     if (benchFilter !== 'all' && r.bench !== benchFilter) return false;
+    if (rowHost(r) !== hostFilter) return false;
     return true;
   });
 
@@ -281,6 +291,27 @@ function renderCard(bench, group, paramMap) {
   });
   charts.set(`${bench}/${group}`, chart);
   return card;
+}
+
+// ── host helpers (also used by compare.js / releases.js) ─────────────────
+
+function rowHost(row) {
+  return row.host_label ?? DEFAULT_HOST;
+}
+
+// Host labels present in rows, the dedicated host first.
+function hostLabels(rows) {
+  return [...new Set(rows.map(rowHost))].sort((a, b) =>
+    (b === DEFAULT_HOST) - (a === DEFAULT_HOST) || a.localeCompare(b));
+}
+
+// Fills a host <select> with the hosts in rows. One host's numbers are
+// never charted beside another's, so there is no "all" option. Returns the
+// default: the dedicated host when it has rows.
+function fillHostSelect(sel, rows) {
+  const hosts = hostLabels(rows);
+  for (const h of hosts) sel.appendChild(new Option(h, h));
+  return hosts[0] ?? DEFAULT_HOST;
 }
 
 // ── metric helpers (also used by compare.js) ──────────────────────────────
@@ -573,4 +604,5 @@ window.AWFY = {
   formatNs, formatRps, formatBps, formatInstructions, formatBytes,
   escapeHtml, relTime, REPO_URL, anchorId, anchorLink, scrollToHash,
   loadHistory, loadAnnotations, annotationsForChart,
+  DEFAULT_HOST, rowHost, hostLabels, fillHostSelect,
 };
