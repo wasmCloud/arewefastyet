@@ -21,6 +21,7 @@
   --step-webgpu-native: #eb6834;
   --step-wasm: #1baf7a;
   --side-wasmcloud: #1baf7a;
+  --side-native: #eb6834;
   --mem-model: #8a8a86;
   --model-1: #6250d6;
   --model-2: #eda100;
@@ -42,6 +43,7 @@
     --step-webgpu-native: #d95926;
     --step-wasm: #199e70;
     --side-wasmcloud: #199e70;
+    --side-native: #d95926;
     --mem-model: #6f6f6b;
     --model-1: #9085e9;
     --model-2: #c98500;
@@ -533,7 +535,7 @@ footer p { margin: 0; }
   margin-bottom: 0.5rem;
 }
 .legend .legend-sep { margin-left: 0.5rem; }
-.legend .swatch, .tile .swatch {
+.legend .swatch, .tile .swatch, .split-table .swatch {
   display: inline-block;
   width: 0.7em;
   height: 0.7em;
@@ -547,6 +549,21 @@ footer p { margin: 0; }
   opacity: 0.8;
 }
 
+.split-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.split-table th, .split-table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.split-table th:first-child, .split-table td:first-child { text-align: left; }
+.split-table th { font-weight: 600; color: var(--muted); }
+.table-scroll { overflow-x: auto; }
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
