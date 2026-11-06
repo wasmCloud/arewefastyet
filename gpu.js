@@ -4,9 +4,11 @@
 // label (`<kind>-<class>`, e.g. cuda-l4; the kind picks the vendor backend):
 //   - how far from native: tok/s for the vendor, webgpu-native and wasm
 //     steps of the latest run as bars with the gaps between them, a trend
-//     per llama test, and the model size beside the wasm guest's memory peak
+//     per llama test, the wasm overhead per model size, and the model size
+//     beside the wasm guest's memory peak
 //   - serverless: GPU memory over time from the `peak_gpu_mem` row's
-//     `timeline`, with stat tiles
+//     `timeline` for wasmCloud and native, stat tiles, and per model where a
+//     cold turn's time to first token goes
 //
 // The trends page leaves these rows out (see OWN_VIEW in script.js).
 
@@ -19,8 +21,8 @@ const {
 
 const BENCH = 'gpubench';
 const STEPS = ['vendor', 'webgpu-native', 'wasm'];
-const SIDES = ['wasmcloud'];
-const SIDE_LABEL = { wasmcloud: 'wasmCloud' };
+const SIDES = ['wasmcloud', 'native'];
+const SIDE_LABEL = { wasmcloud: 'wasmCloud', native: 'native' };
 const VENDOR_BACKEND = { metal: 'Metal', cuda: 'CUDA' };
 // Everything a wasm32 guest can address.
 const WASM32_LIMIT = 2 ** 32;
@@ -130,7 +132,8 @@ function render() {
 
   const sl = section('serverless', 'serverless', `
     Several models take turns on one GPU as wasmCloud workloads: each turn starts
-    its model cold, generates one token and stops it, then the GPU sits idle.`);
+    its model cold, generates one token and stops it, then the GPU sits idle. The
+    same plan then runs as native processes on the same WebGPU implementation.`);
   for (const b of boxes) {
     const boxRows = rows.filter(r => r.box === b && r.group === 'serverless');
     if (boxRows.length) sl.appendChild(serverlessCard(b, boxRows));
@@ -148,7 +151,10 @@ function section(id, title, intro) {
 
 
 function gapCard(box, rows) {
-  const tokRows = rows.filter(r => r.metric === 'tokens_per_s');
+  // The headline model's rows; the other model sizes carry the model in the
+  // param (`<box>/<model>/<step>`) and only feed the overhead table.
+  const headline = new Set(STEPS.map(s => `${box}/${s}`));
+  const tokRows = rows.filter(r => r.metric === 'tokens_per_s' && headline.has(r.param));
   const run = latestRun(tokRows);
   const latest = rows.filter(r => runKey(r) === run.key);
   const tests = sortTests([...new Set(latest.filter(r => r.metric === 'tokens_per_s').map(r => r.group))]);
@@ -177,7 +183,7 @@ function gapCard(box, rows) {
       const r = vals[i];
       if (!r) return barRow(stepLabel(box, s), null, 0, `var(--step-${s})`, 'did not run');
       const [g, from] = gaps[s] ?? [];
-      const note = g ? `${fmtGap(g.value)} vs ${from}` : '';
+      const note = g ? `${fmtGap(g.value)} vs ${from}${g.significant === false ? ' (within noise)' : ''}` : '';
       const title = `${s}: ${fmtTok(r.value)} tok/s${r.stddev != null ? ` ± ${fmtTok(r.stddev)}` : ''}${r.backend ? ` · ${r.backend}` : ''}`;
       return barRow(stepLabel(box, s), `${fmtTok(r.value)} tok/s`,
         r.value / max, `var(--step-${s})`, note, title);
@@ -191,6 +197,12 @@ function gapCard(box, rows) {
       </div>`);
   }
   card.appendChild(panels);
+  card.insertAdjacentHTML('beforeend', `
+    <p class="caveat">The vendor → WebGPU gap is under investigation: llama.cpp's WebGPU backend
+      may leave work on the CPU or skip fast paths here, so read it as an upper bound on what
+      WebGPU costs. webgpu-native → wasm is the host interface's cost.</p>`);
+  const sizes = sizeTable(box, latest, tests);
+  if (sizes) card.insertAdjacentHTML('beforeend', sizes);
 
   // Trend over commits: one chart per llama test, one line per step.
   const trend = document.createElement('div');
@@ -204,6 +216,31 @@ function gapCard(box, rows) {
   card.insertAdjacentHTML('beforeend', '<h4 class="sub">trend over commits</h4>');
   card.appendChild(trend);
   return card;
+}
+
+// wasm vs webgpu-native for every model in the run, headline first. A small
+// model has little GPU work per token, so the host interface shows most there.
+function sizeTable(box, latest, tests) {
+  const over = latest.filter(r => r.metric === 'wasm_overhead_pct'
+    && (r.param === box || r.param.startsWith(`${box}/`)));
+  const models = [...new Set(over.map(r => r.model))]
+    .sort((a, b) => (parseFloat(modelShort(b)) || 0) - (parseFloat(modelShort(a)) || 0));
+  if (models.length < 2) return '';
+  const head = tests.map(t => `<th>${escapeHtml(testLabel(t))}</th>`).join('');
+  const body = models.map(m => {
+    const cells = tests.map(t => {
+      const r = over.find(x => x.model === m && x.group === t);
+      if (!r) return '<td class="muted">—</td>';
+      const noise = r.significant === false ? ' <span class="muted">(noise)</span>' : '';
+      return `<td>${escapeHtml(fmtGap(r.value))}${noise}</td>`;
+    }).join('');
+    return `<tr><td title="${escapeHtml(m)}">${escapeHtml(modelShort(m))}</td>${cells}</tr>`;
+  }).join('');
+  return `
+    <h4 class="sub">wasm vs webgpu-native by model size</h4>
+    <div class="table-scroll"><table class="split-table">
+      <thead><tr><th>model</th>${head}</tr></thead><tbody>${body}</tbody>
+    </table></div>`;
 }
 
 function barRow(label, value, frac, color, note, title = '', marker = null) {
@@ -349,7 +386,7 @@ function serverlessCard(box, rows) {
   const run = latestRun(rows);
   const latest = rows.filter(r => runKey(r) === run.key);
   const find = (side, metric) => latest.find(r => r.param === `${box}/${side}` && r.metric === metric);
-  const sides = SIDES.filter(s => latest.some(r => r.param === `${box}/${s}`));
+  const sides = SIDES.filter(s => latest.some(r => r.param === `${box}/${s}` || r.param.startsWith(`${box}/${s}/`)));
   const failed = latest.some(r => r.turns_ok === false);
 
   const card = document.createElement('div');
@@ -385,19 +422,40 @@ function serverlessCard(box, rows) {
     }).join('');
     return `<div class="tile"><div class="tile-label">${label}</div>${lines}</div>`;
   };
-  const ms = formatterForUnit('ms');
-  const count = v => String(Math.round(v));
   card.insertAdjacentHTML('beforeend', `
     <div class="tiles">
-      ${tile('cold start to first token', 'cold_start_ttft_ms', ms)}
-      ${tile('idle GPU memory', 'idle_gpu_mem', formatBytes)}
       ${tile('peak GPU memory', 'peak_gpu_mem', formatBytes)}
-      ${tile('models per GPU', 'models_per_gpu', count)}
+      ${tile('idle between turns', 'idle_gpu_mem', formatBytes)}
+      ${tile('idle before the first turn', 'host_idle_gpu_mem', formatBytes)}
     </div>
-    <p class="card-foot">Cold start includes loading the weights; for wasmCloud it is the median over the
-      first model's turns (${escapeHtml(modelShort(find('wasmcloud', 'cold_start_ttft_ms')?.model || '') || '—')}).
-      Idle memory is the median over the back half of each idle window.</p>`);
+    ${ttftTable(box, latest, sides)}
+    <p class="card-foot">Memory is over the box's baseline before the run. Idle memory is the median
+      over the back half of each idle window; before the first turn it is what the started host
+      holds before serving anything. Times are medians over each model's turns: start is the
+      workload's compile and link, load and first token are llama.cpp's own timings.</p>`);
   return card;
+}
+
+// Where each model's time to first token goes, per side.
+function ttftTable(box, latest, sides) {
+  const per = latest.filter(r => sides.some(s => r.param.startsWith(`${box}/${s}/`)));
+  const models = [...new Set(per.map(r => r.model))].sort((a, b) => modelIndex(a) - modelIndex(b));
+  if (!models.length) return '';
+  const ms = formatterForUnit('ms');
+  const cell = (side, model, metric) => {
+    const r = per.find(x => x.param === `${box}/${side}/${model}` && x.metric === metric);
+    return r ? `<td>${escapeHtml(ms(r.value))}</td>` : '<td class="muted">—</td>';
+  };
+  const rows = models.flatMap(m => sides.map(s => `
+    <tr>
+      <td><span class="swatch" style="background:${cssVar(`--side-${s}`)}"></span>${escapeHtml(modelShort(m))} · ${SIDE_LABEL[s]}</td>
+      ${['ttft_ms', 'start_ms', 'load_ms', 'first_token_ms', 'turn_ms'].map(k => cell(s, m, k)).join('')}
+    </tr>`)).join('');
+  return `
+    <div class="table-scroll"><table class="split-table">
+      <thead><tr><th>model</th><th>first token</th><th>start</th><th>load</th><th>prompt + token</th><th>whole turn</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
 }
 
 function timelineChart(canvas, timelines) {
