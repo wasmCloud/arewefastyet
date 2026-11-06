@@ -420,6 +420,11 @@ footer p { margin: 0; }
   border: 1px dashed var(--muted);
 }
 
+.badge.pr {
+  color: var(--fg);
+  border: 1px solid var(--muted);
+}
+
 .panel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));

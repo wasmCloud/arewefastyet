@@ -68,7 +68,9 @@
       average over its repetitions. GPU memory is measured over the idle
       baseline sampled before each run, so the box's other GPU users drop out.
       Smoke runs (<code>run.sh --smoke</code>: the 0.5B model, short tests) are
-      hidden unless included above. Click a trend point to open its workflow run;
+      hidden unless included above. A pull request appears only when
+      <code>gpubench.yml</code> ran it with <code>publish_pr</code>, under its
+      own ref. Click a trend point to open its workflow run;
       dashed vertical lines mark <a href="https://github.com/wasmCloud/arewefastyet/blob/main/data/annotations.json">annotated commits</a>.
     </p>
   </footer>
