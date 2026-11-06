@@ -9,7 +9,7 @@
 const {
   describeMetric, toMetric, chartGroup,
   anchorId, anchorLink, scrollToHash,
-  escapeHtml, REPO_URL, loadHistory,
+  escapeHtml, REPO_URL, loadHistory, rowHost, fillHostSelect,
 } = window.AWFY;
 
 // Strict semver-ish: optional leading 'v', three numeric parts.
@@ -52,6 +52,19 @@ async function main() {
   }
   benchSel.addEventListener('change', () => render(releaseRows));
 
+  // ?host= preselects the host, as on the trends page.
+  const hostSel = document.getElementById('host-filter');
+  const defaultHost = fillHostSelect(hostSel, releaseRows);
+  const urlHost = new URLSearchParams(location.search).get('host');
+  hostSel.value = urlHost && [...hostSel.options].some(o => o.value === urlHost) ? urlHost : defaultHost;
+  hostSel.addEventListener('change', () => {
+    const q = new URLSearchParams(location.search);
+    if (hostSel.value === defaultHost) q.delete('host'); else q.set('host', hostSel.value);
+    const search = q.toString();
+    history.replaceState(null, '', `${location.pathname}${search ? `?${search}` : ''}${location.hash}`);
+    render(releaseRows);
+  });
+
   setLastUpdated(releaseRows);
   render(releaseRows);
   scrollToHash();
@@ -70,7 +83,9 @@ function setLastUpdated(rows) {
 
 function render(rows) {
   const benchFilter = document.getElementById('bench-filter').value;
-  const filtered = rows.filter(r => benchFilter === 'all' || r.bench === benchFilter);
+  const hostFilter = document.getElementById('host-filter').value;
+  const filtered = rows.filter(r =>
+    (benchFilter === 'all' || r.bench === benchFilter) && rowHost(r) === hostFilter);
 
   for (const c of charts.values()) c.destroy();
   charts.clear();

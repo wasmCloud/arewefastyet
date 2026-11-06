@@ -138,6 +138,7 @@ fields differ.
   "run_attempt": "1",
   "timestamp": "2026-05-07T17:21:20Z",
   "host": "wasmcloud-bench-01",
+  "host_label": "hetzner",
   "kernel": "6.8.0-100-generic",
   "cpus_online": 6,
   "metric": "mean_ns",
@@ -164,9 +165,21 @@ fields differ.
 ```
 
 The bench-side dedup key is `(sha, bench, group, param, run_attempt,
-metric)`. `HISTORY_MAX_AGE_DAYS` (set in the bench-side aggregator)
-caps the file at one year by default to keep it bounded as runs
+metric, host_label)`. `HISTORY_MAX_AGE_DAYS` (set in the bench-side
+aggregator) caps the file at one year by default to keep it bounded as runs
 accumulate.
+
+## Hosts
+
+`host_label` is the runner label of the host a row ran on: `hetzner` for
+the dedicated host, anything else for a short-lived one (see the bench
+runbook). A row without it is a `hetzner` row.
+
+The trends and releases pages chart one host at a time, picked with the
+host filter (`?host=`, default `hetzner`), since numbers from different
+hardware don't belong on one line. The compare page lists every host's
+runs, shows each run's host, and warns when A and B ran on different
+hosts.
 
 ## Significance heuristic (compare view)
 
@@ -197,7 +210,7 @@ floating-point artifacts at the bottom of the dynamic range — anything
 | `releases.html`, `releases.js` | Releases page: filters history to semver tags, x-axis is the (semver-ordered) tag, not time. |
 | `assets/wasmcloud-logo.svg` | Official wasmCloud hex-W mark (#00bc8e), used for header logo + favicon. |
 | `CNAME` | Pages reads this for the custom domain. |
-| `data/history.sample.json` | Synthetic 8-commit sample (clearly fake SHAs) — local-dev fallback. |
+| `data/history.sample.json` | Synthetic 8-commit sample (clearly fake SHAs), with a few `aws-c7i` host rows — local-dev fallback. |
 | `.github/workflows/deploy.yml` | On push/dispatch: write `config.json` from `vars.DATA_URL` → deploy-pages. |
 | `.gitignore` | Excludes the runtime-generated `config.json`. |
 
