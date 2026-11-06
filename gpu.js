@@ -1,12 +1,12 @@
 // arewefastyet — GPU view
 //
 // Renders the `gpubench` rows that `bench-tools gpu jsonl` emits, per box
-// (metal, cuda, …):
+// label (`<kind>-<class>`, e.g. cuda-l4; the kind picks the vendor backend):
 //   - how far from native: tok/s for the vendor, webgpu-native and wasm
 //     steps of the latest run as bars with the gaps between them, a trend
 //     per llama test, and the model size beside the wasm guest's memory peak
-//   - serverless vs vLLM: GPU memory over time from the `peak_gpu_mem`
-//     row's `timeline`, both sides on one time axis, with stat tiles
+//   - serverless: GPU memory over time from the `peak_gpu_mem` row's
+//     `timeline`, with stat tiles
 //
 // The trends page leaves these rows out (see OWN_VIEW in script.js).
 
@@ -19,8 +19,8 @@ const {
 
 const BENCH = 'gpubench';
 const STEPS = ['vendor', 'webgpu-native', 'wasm'];
-const SIDES = ['wasmcloud', 'vllm'];
-const SIDE_LABEL = { wasmcloud: 'wasmCloud', vllm: 'vLLM' };
+const SIDES = ['wasmcloud'];
+const SIDE_LABEL = { wasmcloud: 'wasmCloud' };
 const VENDOR_BACKEND = { metal: 'Metal', cuda: 'CUDA' };
 // Everything a wasm32 guest can address.
 const WASM32_LIMIT = 2 ** 32;
@@ -128,11 +128,9 @@ function render() {
   if (mem) gap.appendChild(mem);
   if (gap.querySelector('.chart-card')) root.appendChild(gap);
 
-  const sl = section('serverless', 'serverless vs vLLM', `
+  const sl = section('serverless', 'serverless', `
     Several models take turns on one GPU as wasmCloud workloads: each turn starts
-    its model cold, generates one token and stops it, then the GPU sits idle. vLLM
-    serves one model and keeps its share of GPU memory whether or not anyone asks.
-    Throughput under high concurrency is not compared: vLLM wins that, and it isn't the claim.`);
+    its model cold, generates one token and stops it, then the GPU sits idle.`);
   for (const b of boxes) {
     const boxRows = rows.filter(r => r.box === b && r.group === 'serverless');
     if (boxRows.length) sl.appendChild(serverlessCard(b, boxRows));
@@ -379,9 +377,6 @@ function serverlessCard(box, rows) {
       <div class="chart-wrapper timeline"><canvas aria-label="${escapeHtml(`${box}: GPU memory over time, ${timelines.map(x => SIDE_LABEL[x.side]).join(' and ')}`)}"></canvas></div>`);
     charts.push(timelineChart(card.querySelector('canvas'), timelines));
   }
-  if (!sides.includes('vllm')) {
-    card.insertAdjacentHTML('beforeend', `<p class="caveat">No vLLM side on <code>${escapeHtml(box)}</code>: vLLM runs on cuda boxes only.</p>`);
-  }
 
   const tile = (label, metric, fmt, extra = () => '') => {
     const lines = sides.map(s => {
@@ -392,24 +387,12 @@ function serverlessCard(box, rows) {
   };
   const ms = formatterForUnit('ms');
   const count = v => String(Math.round(v));
-  const warm = s => {
-    const r = find(s, 'warm_ttft_ms');
-    return r ? `<div class="tile-sub">warm: ${escapeHtml(ms(r.value))}</div>` : '';
-  };
-  const models = s => {
-    const r = find(s, 'models_per_gpu');
-    const m = r?.model ? modelShort(r.model) : '';
-    if (s === 'vllm' && r?.gpu_memory_utilization != null) {
-      return `<div class="tile-sub" title="gpu_memory_utilization ${escapeHtml(r.gpu_memory_utilization)}">${escapeHtml(m)}, ${Math.round(r.gpu_memory_utilization * 100)} % of GPU memory</div>`;
-    }
-    return '';
-  };
   card.insertAdjacentHTML('beforeend', `
     <div class="tiles">
-      ${tile('cold start to first token', 'cold_start_ttft_ms', ms, warm)}
+      ${tile('cold start to first token', 'cold_start_ttft_ms', ms)}
       ${tile('idle GPU memory', 'idle_gpu_mem', formatBytes)}
       ${tile('peak GPU memory', 'peak_gpu_mem', formatBytes)}
-      ${tile('models per GPU', 'models_per_gpu', count, models)}
+      ${tile('models per GPU', 'models_per_gpu', count)}
     </div>
     <p class="card-foot">Cold start includes loading the weights; for wasmCloud it is the median over the
       first model's turns (${escapeHtml(modelShort(find('wasmcloud', 'cold_start_ttft_ms')?.model || '') || '—')}).
@@ -600,7 +583,8 @@ function testLabel(group) {
 }
 
 function stepLabel(box, step) {
-  if (step === 'vendor' && VENDOR_BACKEND[box]) return `vendor <span class="muted">(${VENDOR_BACKEND[box]})</span>`;
+  const backend = VENDOR_BACKEND[box.split('-')[0]];
+  if (step === 'vendor' && backend) return `vendor <span class="muted">(${backend})</span>`;
   return escapeHtml(step);
 }
 

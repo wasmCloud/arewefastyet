@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>gpu · arewefastyet · wasmCloud</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="wasmCloud GPU benchmarks: how far wasi:webgpu is from native, and serverless GPU memory vs vLLM">
+  <meta name="description" content="wasmCloud GPU benchmarks: how far wasi:webgpu is from native, and serverless GPU memory">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" type="image/svg+xml" href="assets/wasmcloud-logo.svg">
   <link rel="stylesheet" href="style.css">
@@ -24,7 +24,7 @@
       One model on one GPU, three ways: the vendor backend, WebGPU as a native
       binary, and the same WebGPU build as a <code>wasm32-wasip3</code>
       component in <code>wash-runtime</code>. Then several models taking turns
-      on one GPU as serverless workloads, beside vLLM holding one.
+      on one GPU as serverless workloads.
     </p>
     <nav class="tabs">
       <a href="./">trends</a>
