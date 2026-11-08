@@ -17,6 +17,10 @@
 //     their own `unit` and `better: "higher" | "lower"`. One (group, param)
 //     holds several metrics, so these chart per (group, metric) — see
 //     chartGroup().
+//   - scale_density also writes one `metric: "ramp"` row per flavour: its
+//     steps as columns in `steps`, with no `better`. It is not a trend; the
+//     density page draws it and every other page leaves it out
+//     (isRampRow()).
 //
 // Older rows from before the schema bump have no `.metric` field; they
 // are treated as criterion rows (the per-row throughput logic still
@@ -48,6 +52,12 @@ function hasOwnView(row) {
   return row != null && Object.hasOwn(OWN_VIEW, row.bench);
 }
 
+// A density run's per-step ramp: one row holding a whole run's steps, for
+// density.html only. It has a value but is no trend or comparison.
+function isRampRow(row) {
+  return row != null && row.metric === 'ramp' && row.steps != null && typeof row.steps === 'object';
+}
+
 let allRows = [];
 let allAnnotations = [];
 const charts = new Map();
@@ -68,7 +78,7 @@ async function main() {
   }
   try {
     const rows = await loadHistory();
-    allRows = Array.isArray(rows) ? rows.filter(r => !hasOwnView(r)) : rows;
+    allRows = Array.isArray(rows) ? rows.filter(r => !hasOwnView(r) && !isRampRow(r)) : rows;
     allAnnotations = await loadAnnotations();
   } catch (err) {
     root.innerHTML = `<p class="error">Could not load history: ${escapeHtml(err.message)}</p>`;
@@ -617,7 +627,7 @@ function annotationsForChart(annotations, paramMap) {
 window.AWFY = {
   describeMetric, toMetric, ciToMetric, significanceClass, chartGroup,
   formatNs, formatRps, formatBps, formatInstructions, formatBytes,
-  formatterForUnit, hasOwnView, escapeHtml, relTime, REPO_URL, anchorId, anchorLink, scrollToHash,
+  formatterForUnit, hasOwnView, isRampRow, escapeHtml, relTime, REPO_URL, anchorId, anchorLink, scrollToHash,
   loadHistory, loadAnnotations, annotationsForChart,
   DEFAULT_HOST, rowHost, hostLabels, fillHostSelect,
 };
