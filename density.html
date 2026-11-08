@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>density · arewefastyet · wasmCloud</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="wasmCloud density: how many WebAssembly components one host keeps running, warm or scaled to zero">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" type="image/svg+xml" href="assets/wasmcloud-logo.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <a href="https://wasmcloud.com" class="brand-link" aria-label="wasmCloud">
+        <img class="logo" src="assets/wasmcloud-logo.svg" alt="wasmCloud" width="40" height="46">
+      </a>
+      <div class="brand-text">
+        <h1>are we fast yet? <span class="page-title">/ density</span></h1>
+        <p class="kicker">wasmCloud · <code>scale_density</code> on one box</p>
+      </div>
+    </div>
+    <p class="lede">
+      How many components one <code>wash-runtime</code> host keeps running:
+      start them in steps, keep every one answering HTTP, and stop at the first
+      limit. <b>Warm</b> workloads keep their instance between requests;
+      <b>scale-to-zero</b> workloads are torn down after each one and started
+      again on the next.
+    </p>
+    <nav class="tabs">
+      <a href="./">trends</a>
+      <a href="compare.html">compare</a>
+      <a href="releases.html">releases</a>
+      <a href="gpu.html">gpu</a>
+      <a href="density.html" class="active" aria-current="page">density</a>
+    </nav>
+    <div class="meta">
+      <span id="last-updated">loading…</span>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/arewefastyet">site</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/wasmCloud/wasmCloud/blob/main/crates/wash-runtime/benches/scale_density.md">scale_density</a>
+    </div>
+    <div class="controls">
+      <label>
+        host
+        <select id="host-filter"></select>
+      </label>
+    </div>
+  </header>
+
+  <main id="density" aria-live="polite"></main>
+
+  <footer>
+    <p>
+      The record runs and the walls are a hand-run campaign on one EC2
+      c9g.16xlarge (<a href="data/density-records.json">data</a>), each step
+      of a ramp being one row of the bench's own report. A workload is counted
+      only once it answers a request; footprint is the host process's
+      anonymous memory, swap and page tables. The CI table is the latest
+      published <code>scale_density</code> run per host, at CI's defaults
+      (a 2 GiB process cap), so it shows regressions rather than records.
+    </p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+          integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"
+          integrity="sha384-cVMg8E3QFwTvGCDuK+ET4PD341jF3W8nO1auiXfuZNQkzbUUiBGLsIQUE+b1mxws"
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"
+          integrity="sha384-3N9GHhCtN3CQef6tNfqgZlv7sQLYIkcChN+uaTZ7xVdzKYp/SjBNPxa92+hM7EAY"
+          crossorigin="anonymous"></script>
+  <script src="script.js"></script>
+  <script src="density.js"></script>
+</body>
+</html>

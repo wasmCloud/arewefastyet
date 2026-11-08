@@ -14,6 +14,11 @@ Static trend site for the wasmCloud bench pipeline. Four views:
   between them, the wasm guest's memory beside the model's size, and GPU
   memory over time for serverless wasmCloud turns. Trends and
   releases leave these rows out; `?bench=gpubench` on trends opens this page.
+- **[density](./density.html)** — how many components one host keeps
+  running. A record from a hand-run `scale_density` campaign
+  (`data/density-records.json`: per-step ramps for warm and scale-to-zero,
+  and the ceiling each change moved), then the latest published
+  `scale_density` run per host. Trends still charts these rows over commits.
 
 This repo is **just the site**. Bench data is produced by the bench
 pipeline in [`wasmCloud/wasmCloud`](https://github.com/wasmCloud/wasmCloud)
@@ -214,6 +219,7 @@ floating-point artifacts at the bottom of the dynamic range — anything
 | `compare.js` | Compare-runs logic; consumes `window.AWFY` (IIFE-wrapped). |
 | `releases.html`, `releases.js` | Releases page: filters history to semver tags, x-axis is the (semver-ordered) tag, not time. |
 | `gpu.html`, `gpu.js` | GPU page: renders `bench: "gpubench"` rows per box; consumes `window.AWFY`. |
+| `density.html`, `density.js` | Density page: the record in `data/density-records.json` plus the latest `scale_density` run per host; consumes `window.AWFY`. |
 | `assets/wasmcloud-logo.svg` | Official wasmCloud hex-W mark (#00bc8e), used for header logo + favicon. |
 | `CNAME` | Pages reads this for the custom domain. |
 | `data/history.sample.json` | Synthetic 8-commit sample (clearly fake SHAs) — local-dev fallback. Includes a few `aws-c7i` host rows, and synthetic `gpubench` rows (`run_id: sample-gpu-*`) for a metal and a cuda box over three commits, plus one smoke run. |
