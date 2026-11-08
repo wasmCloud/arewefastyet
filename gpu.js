@@ -138,7 +138,8 @@ function render() {
   const sl = section('serverless', 'serverless', `
     Several models take turns on one GPU as wasmCloud workloads: each turn starts
     its model cold, generates one token and stops it, then the GPU sits idle. The
-    same plan then runs as native processes on the same WebGPU implementation.`);
+    same plan then runs as native processes on the same WebGPU implementation.
+    Both sides scale to zero between turns; what wasmCloud pays is the cold start.`);
   for (const b of boxes) {
     const boxRows = rows.filter(r => r.box === b && r.group === 'serverless');
     if (boxRows.length) sl.appendChild(serverlessCard(b, boxRows));
@@ -427,17 +428,39 @@ function serverlessCard(box, rows) {
     }).join('');
     return `<div class="tile"><div class="tile-label">${label}</div>${lines}</div>`;
   };
+  // What a stopped turn gives back: the peak less what is still held while idle.
+  const freed = s => {
+    const peak = find(s, 'peak_gpu_mem')?.value;
+    const idle = find(s, 'idle_gpu_mem')?.value;
+    return peak > 0 && idle != null ? { bytes: peak - idle, share: (peak - idle) / peak } : null;
+  };
+  const freedTile = `<div class="tile"><div class="tile-label">freed when a turn ends</div>${sides.map(s => {
+    const f = freed(s);
+    return `<div class="tile-line"><span class="swatch" style="background:${cssVar(`--side-${s}`)}"></span><span class="tile-side">${SIDE_LABEL[s]}</span><span class="tile-value">${f ? `${(f.share * 100).toFixed(1)} %` : '—'}</span></div>${f ? `<div class="tile-sub">${escapeHtml(formatBytes(f.bytes))} of the peak</div>` : ''}`;
+  }).join('')}</div>`;
+  // Between turns only the host process can hold GPU memory: native runs have
+  // no process then, so the native line says so instead of showing 0 B.
+  const hostTile = `<div class="tile"><div class="tile-label">host process while idle</div>${sides.map(s => {
+    const idle = find(s, 'idle_gpu_mem');
+    const before = find(s, 'host_idle_gpu_mem');
+    const value = s === 'native' ? 'no process' : idle ? formatBytes(idle.value) : '—';
+    const sub = s !== 'native' && before ? `<div class="tile-sub">${escapeHtml(formatBytes(before.value))} before the first turn</div>` : '';
+    return `<div class="tile-line"><span class="swatch" style="background:${cssVar(`--side-${s}`)}"></span><span class="tile-side">${SIDE_LABEL[s]}</span><span class="tile-value">${escapeHtml(value)}</span></div>${sub}`;
+  }).join('')}</div>`;
   card.insertAdjacentHTML('beforeend', `
     <div class="tiles">
       ${tile('peak GPU memory', 'peak_gpu_mem', formatBytes)}
-      ${tile('idle between turns', 'idle_gpu_mem', formatBytes)}
-      ${tile('idle before the first turn', 'host_idle_gpu_mem', formatBytes)}
+      ${freedTile}
+      ${hostTile}
     </div>
     ${ttftTable(box, latest, sides)}
-    <p class="card-foot">Memory is over the box's baseline before the run. Idle memory is the median
-      over the back half of each idle window; before the first turn it is what the started host
-      holds before serving anything. Times are medians over each model's turns: start is the
-      workload's compile and link, load and first token are llama.cpp's own timings.</p>`);
+    <p class="card-foot">Memory is over the box's baseline before the run. When a turn ends, wasmCloud
+      stops its workload and frees the workload's GPU memory; the host process keeps running, so what
+      stays is the host's own GPU context, not a model. Native turns are separate processes, so
+      nothing runs between them. Idle memory is the median over the back half of each idle window;
+      before the first turn it is what the started host holds before serving anything. Times are
+      medians over each model's turns: start is the workload's compile and link, load and first
+      token are llama.cpp's own timings.</p>`);
   return card;
 }
 
