@@ -137,11 +137,13 @@ function hero(rec) {
   const stz = rec.ramps?.scale_to_zero;
   const last = ramp => ramp?.steps?.at(-1);
   const idx = Object.fromEntries(rec.step_fields.map((f, i) => [f, i]));
-  // The step a ramp is counted at: its last clean one when the data says
-  // which steps were clean (CI), else its last step.
+  // The step a ramp is counted at: the last one where every workload still
+  // answered. CI marks those steps clean; the hand-made file has no such
+  // column, so there it is the last step that served requests. The step the
+  // run stopped at can hold workloads that were deployed but never served.
   const top = ramp => (idx.clean != null
     ? ramp?.steps?.filter(s => s[idx.clean]).at(-1)
-    : last(ramp));
+    : ramp?.steps?.filter(s => s[idx.request_p99_ms] != null).at(-1) ?? last(ramp));
   const warmTop = top(warm);
   const stzTop = top(stz);
   // p99 at the top of the warm ramp: the last step that served requests.
@@ -153,7 +155,7 @@ function hero(rec) {
     : null;
   const tiles = [
     warmTop && ['warm components', fmtBig(warmTop[idx.workloads]), 'every one kept running and answering HTTP'],
-    stzTop && ['scale-to-zero workloads', fmtBig(stzTop[idx.workloads]), 'deployed, started on each request'],
+    stzTop && ['scale-to-zero workloads', fmtBig(stzTop[idx.workloads]), 'served, each started on its request'],
     warm?.marginal_bytes_per_workload != null && ['per warm component', `${Math.round(warm.marginal_bytes_per_workload / 1024)} KiB`, 'host memory, page tables included'],
     warmServed && ['request p99 at the top', `${warmServed[idx.request_p99_ms].toFixed(1)} ms`, `across ${fmtBig(warmServed[idx.workloads])} warm components`],
     peakStarts && ['cold starts per second', fmtBig(peakStarts), 'scale-to-zero, peak step'],
