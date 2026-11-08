@@ -16,7 +16,7 @@
 (() => {
 const {
   describeMetric, toMetric, ciToMetric, significanceClass, chartGroup,
-  escapeHtml, REPO_URL, loadHistory, rowHost, hostLabels,
+  escapeHtml, REPO_URL, loadHistory, rowHost, hostLabels, isRampRow,
 } = window.AWFY;
 
 let allRows = [];
@@ -26,7 +26,9 @@ document.addEventListener('DOMContentLoaded', main);
 async function main() {
   const root = document.getElementById('diff');
   try {
-    allRows = await loadHistory();
+    const rows = await loadHistory();
+    // A density ramp is a run's steps, not a figure to diff.
+    allRows = Array.isArray(rows) ? rows.filter(r => !isRampRow(r)) : rows;
   } catch (err) {
     root.innerHTML = `<p class="error">Could not load history: ${escapeHtml(err.message)}</p>`;
     return;

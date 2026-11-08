@@ -15,10 +15,14 @@ Static trend site for the wasmCloud bench pipeline. Four views:
   memory over time for serverless wasmCloud turns. Trends and
   releases leave these rows out; `?bench=gpubench` on trends opens this page.
 - **[density](./density.html)** — how many components one host keeps
-  running. A record from a hand-run `scale_density` campaign
-  (`data/density-records.json`: per-step ramps for warm and scale-to-zero,
-  and the ceiling each change moved), then the latest published
-  `scale_density` run per host. Trends still charts these rows over commits.
+  running. The record is the newest `scale_density` run in group
+  `density-max` (the bench workflow's `million_warm` preset) on the
+  selected host: its hero numbers, and per-step ramps for warm and
+  scale-to-zero from its `metric: "ramp"` rows. A host without one falls
+  back to the hand-run campaign in `data/density-records.json`, which also
+  holds the curated walls (the ceiling each change moved). Then the latest
+  published `scale_density` run per host at CI's defaults. Trends still
+  charts the summary rows over commits; ramp rows appear only here.
 
 This repo is **just the site**. Bench data is produced by the bench
 pipeline in [`wasmCloud/wasmCloud`](https://github.com/wasmCloud/wasmCloud)
@@ -219,7 +223,7 @@ floating-point artifacts at the bottom of the dynamic range — anything
 | `compare.js` | Compare-runs logic; consumes `window.AWFY` (IIFE-wrapped). |
 | `releases.html`, `releases.js` | Releases page: filters history to semver tags, x-axis is the (semver-ordered) tag, not time. |
 | `gpu.html`, `gpu.js` | GPU page: renders `bench: "gpubench"` rows per box; consumes `window.AWFY`. |
-| `density.html`, `density.js` | Density page: the record in `data/density-records.json` plus the latest `scale_density` run per host; consumes `window.AWFY`. |
+| `density.html`, `density.js` | Density page: the newest `density-max` run per host (else the record in `data/density-records.json`), the curated walls, plus the latest `scale_density` run per host; consumes `window.AWFY`. |
 | `assets/wasmcloud-logo.svg` | Official wasmCloud hex-W mark (#00bc8e), used for header logo + favicon. |
 | `CNAME` | Pages reads this for the custom domain. |
 | `data/history.sample.json` | Synthetic 8-commit sample (clearly fake SHAs) — local-dev fallback. Includes a few `aws-c7i` host rows, and synthetic `gpubench` rows (`run_id: sample-gpu-*`) for a metal and a cuda box over three commits, plus one smoke run. |

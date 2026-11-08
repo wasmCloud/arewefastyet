@@ -1,21 +1,37 @@
 // arewefastyet — density view
 //
-// Two sources:
+// Sources:
+//   - history.json, group `density-max`: the newest run of the bench
+//     workflow's million_warm preset on the selected host. Its `ramp` rows
+//     (one per flavour, the steps thinned to at most 80) give the hero
+//     numbers and the ramps.
 //   - data/density-records.json: a hand-run scale_density campaign on one
-//     host. The record ramps (one row of the bench's report per step) and
-//     the walls, the ceiling each change moved.
-//   - history.json: the latest published scale_density run per host, at
-//     CI's defaults, so a regression shows up next to the record.
+//     host. Its walls, the ceiling each change moved, are curated and always
+//     come from here. Its ramps are the fallback for a host with no
+//     density-max run yet.
+//   - history.json, group `density`: the latest scale_density run per host
+//     at CI's defaults, so a regression shows up next to the record.
 //
-// The trends page still charts scale_density rows over commits.
+// The trends page still charts the summary rows over commits; ramp rows
+// are left out there (AWFY.isRampRow).
 
 (() => {
 const {
   escapeHtml, relTime, REPO_URL, anchorLink, scrollToHash,
-  loadHistory, formatBytes, rowHost, hostLabels,
+  loadHistory, formatBytes, rowHost, hostLabels, isRampRow,
 } = window.AWFY;
 
 const BENCH = 'scale_density';
+// The bench workflow's preset for the densest settings publishes here.
+const MAX_GROUP = 'density-max';
+// Columns of a ramp step, in the order the records file writes them.
+const CI_STEP_FIELDS = [
+  'workloads', 'footprint_bytes', 'starts_per_sec', 'requests_per_sec',
+  'request_p50_ms', 'request_p99_ms', 'clean',
+];
+// CI does not say which steps paid a one-off warm-up. A first step whose
+// request p99 is more than this many times the ramp's median is taken as one.
+const WARMUP_FACTOR = 3;
 const FLAVOURS = {
   warm: { label: 'warm', color: '--brand' },
   scale_to_zero: { label: 'scale-to-zero', color: '--p3' },
@@ -78,14 +94,16 @@ function render() {
   const root = document.getElementById('density');
   root.innerHTML = '';
 
-  const rec = records && records.host_label === host ? records : null;
-  const ci = ciRows.filter(r => rowHost(r) === host);
+  const fileRec = records && records.host_label === host ? records : null;
+  const hostRows = ciRows.filter(r => rowHost(r) === host);
+  const rec = recordFromCi(hostRows, fileRec) ?? fileRec;
+  const ci = hostRows.filter(r => r.group !== MAX_GROUP && !isRampRow(r));
   setLastUpdated(rec, ci);
 
   if (rec) {
     root.appendChild(hero(rec));
     const ramps = section('ramp', 'the ramp', `
-      Each point is one step of the record run: start the next batch of
+      Each point is one step of the record run${rec.source === 'ci' ? ' (thinned to at most 80 per mode)' : ''}: start the next batch of
       workloads, then send requests across all of them. Footprint climbs by
       the same amount per workload all the way up, and request latency stays
       flat, so the box runs out of memory before it runs out of anything else.`);
@@ -106,7 +124,7 @@ function setLastUpdated(rec, ci) {
   const el = document.getElementById('last-updated');
   const latest = ci.map(r => r.timestamp).filter(Boolean).sort().at(-1);
   const parts = [];
-  if (rec?.date) parts.push(`record run: ${rec.date}`);
+  if (rec?.date) parts.push(`record run: ${rec.date}${rec.source === 'ci' ? ' (CI)' : ''}`);
   if (latest) {
     const d = new Date(latest);
     parts.push(`last CI run: ${d.toISOString().slice(0, 16).replace('T', ' ')}Z (${relTime(d)})`);
@@ -118,23 +136,33 @@ function hero(rec) {
   const warm = rec.ramps?.warm;
   const stz = rec.ramps?.scale_to_zero;
   const last = ramp => ramp?.steps?.at(-1);
-  const warmTop = last(warm);
-  const stzTop = last(stz);
+  const idx = Object.fromEntries(rec.step_fields.map((f, i) => [f, i]));
+  // The step a ramp is counted at: its last clean one when the data says
+  // which steps were clean (CI), else its last step.
+  const top = ramp => (idx.clean != null
+    ? ramp?.steps?.filter(s => s[idx.clean]).at(-1)
+    : last(ramp));
+  const warmTop = top(warm);
+  const stzTop = top(stz);
   // p99 at the top of the warm ramp: the last step that served requests.
-  const warmServed = warm?.steps?.filter(s => s[5] != null).at(-1);
-  const peakStarts = stz ? Math.max(...stz.steps.map(s => s[2] ?? 0)) : null;
+  const warmServed = warm?.steps
+    ?.filter(s => s[idx.request_p99_ms] != null && (idx.clean == null || s[idx.clean]))
+    .at(-1);
+  const peakStarts = stz
+    ? stz.peak_starts_per_sec ?? Math.max(...stz.steps.map(s => s[idx.starts_per_sec] ?? 0))
+    : null;
   const tiles = [
-    warmTop && ['warm components', fmtBig(warmTop[0]), 'every one kept running and answering HTTP'],
-    stzTop && ['scale-to-zero workloads', fmtBig(stzTop[0]), 'deployed, started on each request'],
-    warm && ['per warm component', `${Math.round(warm.marginal_bytes_per_workload / 1024)} KiB`, 'host memory, page tables included'],
-    warmServed && ['request p99 at the top', `${warmServed[5].toFixed(1)} ms`, `across ${fmtBig(warmServed[0])} warm components`],
+    warmTop && ['warm components', fmtBig(warmTop[idx.workloads]), 'every one kept running and answering HTTP'],
+    stzTop && ['scale-to-zero workloads', fmtBig(stzTop[idx.workloads]), 'deployed, started on each request'],
+    warm?.marginal_bytes_per_workload != null && ['per warm component', `${Math.round(warm.marginal_bytes_per_workload / 1024)} KiB`, 'host memory, page tables included'],
+    warmServed && ['request p99 at the top', `${warmServed[idx.request_p99_ms].toFixed(1)} ms`, `across ${fmtBig(warmServed[idx.workloads])} warm components`],
     peakStarts && ['cold starts per second', fmtBig(peakStarts), 'scale-to-zero, peak step'],
   ].filter(Boolean);
   const el = document.createElement('section');
   el.className = 'density-hero';
   el.id = 'record';
   el.innerHTML = `
-    <p class="hero-machine">${escapeHtml(rec.machine ?? rec.host_label)} · one <code>wash-runtime</code> process · ${escapeHtml(rec.component ?? '')}</p>
+    <p class="hero-machine">${escapeHtml(rec.machine ?? rec.host_label)} · one <code>wash-runtime</code> process${rec.component ? ` · ${escapeHtml(rec.component)}` : ''}</p>
     <div class="hero-tiles">${tiles.map(([label, value, sub]) => `
       <div class="hero-tile">
         <div class="hero-value">${escapeHtml(value)}</div>
@@ -142,8 +170,75 @@ function hero(rec) {
         <div class="hero-sub">${escapeHtml(sub)}</div>
       </div>`).join('')}
     </div>
-    ${rec.ci_run ? `<p class="hero-foot">Reproduced from GitHub Actions: <a href="${REPO_URL}/actions/runs/${encodeURIComponent(rec.ci_run.run_id)}" target="_blank" rel="noopener">${escapeHtml(rec.ci_run.label)}</a></p>` : ''}`;
+    ${rec.ci_run ? `<p class="hero-foot">${rec.source === 'ci' ? 'From the newest published run in GitHub Actions' : 'Reproduced from GitHub Actions'}: <a href="${REPO_URL}/actions/runs/${encodeURIComponent(rec.ci_run.run_id)}" target="_blank" rel="noopener">${escapeHtml(rec.ci_run.label)}</a></p>` : ''}`;
   return el;
+}
+
+// The newest density-max run on this host, in the records file's shape so
+// the hero and ramp cards draw either. Curated fields (the machine, the
+// component, the walls) come from the records file for the same host.
+// null when the host has no density-max ramp rows.
+function recordFromCi(rows, base) {
+  const ramps = rows.filter(r => r.group === MAX_GROUP && isRampRow(r));
+  if (!ramps.length) return null;
+  const newest = ramps.reduce((a, r) => (r.timestamp > a.timestamp ? r : a));
+  const run = ramps.filter(r => r.run_id === newest.run_id && r.run_attempt === newest.run_attempt);
+  const out = {};
+  for (const r of run) {
+    const key = flavourKey(r);
+    if (!key || out[key]) continue;
+    const cols = r.steps ?? {};
+    const n = cols.workloads?.length ?? 0;
+    const steps = Array.from({ length: n }, (_, i) => CI_STEP_FIELDS.map(f => cols[f]?.[i] ?? null));
+    const warmup = leadingWarmup(steps.map(s => s[CI_STEP_FIELDS.indexOf('request_p99_ms')]));
+    out[key] = {
+      label: r.param,
+      stop: r.stop ?? 'unknown',
+      memory_limit_bytes: r.memory_limit_bytes,
+      baseline_footprint_bytes: r.baseline_footprint_bytes,
+      marginal_bytes_per_workload: r.marginal_bytes_per_workload,
+      peak_starts_per_sec: r.peak_starts_per_sec,
+      steps,
+      warmup_steps: warmup,
+      warmup_detected: warmup > 0,
+    };
+  }
+  if (!Object.values(out).some(r => r.steps.length)) return null;
+  const clean = CI_STEP_FIELDS.indexOf('clean');
+  const served = out.warm?.steps?.filter(s => s[clean]).at(-1)?.[0];
+  const sha = newest.short_sha ?? newest.sha?.slice(0, 12) ?? '';
+  return {
+    source: 'ci',
+    host_label: rowHost(newest),
+    machine: base?.machine,
+    component: base?.component,
+    date: newest.timestamp?.slice(0, 10),
+    step_fields: CI_STEP_FIELDS,
+    ramps: out,
+    walls: base?.walls,
+    ci_run: {
+      run_id: newest.run_id,
+      label: `${MAX_GROUP} on ${newest.ref ?? '?'} @ ${sha}${served != null ? `: ${fmtCount(served)} warm components served` : ''}`,
+    },
+  };
+}
+
+// The records file's ramp key for a ramp row: the bench's own flavour, or
+// the label's leading word for a row without one.
+function flavourKey(row) {
+  const f = row.flavour ?? (/^scale-to-zero/.test(row.param) ? 'scale-to-zero' : /^warm/.test(row.param) ? 'warm' : null);
+  return f === 'warm' ? 'warm' : f === 'scale-to-zero' ? 'scale_to_zero' : null;
+}
+
+// 1 when the first step's p99 is more than WARMUP_FACTOR times the median
+// of the ramp's p99s, else 0. Needs three readings for a median to mean much.
+function leadingWarmup(p99s) {
+  const vals = p99s.filter(v => v != null && Number.isFinite(v));
+  if (vals.length < 3 || p99s[0] == null) return 0;
+  const sorted = [...vals].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return p99s[0] > WARMUP_FACTOR * median ? 1 : 0;
 }
 
 function section(id, title, intro) {
@@ -163,6 +258,9 @@ function rampCard(rec, key, flavour) {
   // left off the p99 line so it does not set the axis.
   const warmup = ramp.warmup_steps ?? 0;
   const skipped = steps.slice(0, warmup).filter(s => s[idx.request_p99_ms] != null);
+  const warmupWhy = ramp.warmup_detected
+    ? ` CI does not record warm-up, so a first step whose p99 is more than ${WARMUP_FACTOR}× the ramp's median is taken as one.`
+    : '';
   const card = document.createElement('div');
   card.className = 'chart-card';
   card.id = `ramp-${key}`;
@@ -175,11 +273,11 @@ function rampCard(rec, key, flavour) {
       <span><span class="swatch line" style="background:${cssVar('--step-webgpu-native')}"></span>request p99</span>
     </div>
     <div class="chart-wrapper ramp"><canvas aria-label="${escapeHtml(`${flavour.label}: host footprint and request p99 against running workloads`)}"></canvas></div>
-    <p class="card-foot">Stopped at <b>${fmtCount(top[idx.workloads])}</b> workloads: ${escapeHtml(ramp.stop)}.
+    <p class="card-foot">Stopped at <b>${fmtCount(top[idx.workloads])}</b> workloads: ${escapeHtml(ramp.stop)}.${ramp.marginal_bytes_per_workload != null ? `
       ${fmtCount(ramp.marginal_bytes_per_workload)} B (${escapeHtml(formatBytes(ramp.marginal_bytes_per_workload))}) a workload on top of a
-      ${escapeHtml(formatBytes(ramp.baseline_footprint_bytes))} baseline.${skipped.length ? `
+      ${escapeHtml(formatBytes(ramp.baseline_footprint_bytes))} baseline.` : ''}${skipped.length ? `
       The first step's requests (p99 ${escapeHtml(skipped.map(s => `${s[idx.request_p99_ms].toFixed(1)} ms at ${fmtBig(s[idx.workloads])}`).join(', '))})
-      paid a one-off warm-up and are left off the p99 line.` : ''}</p>`;
+      paid a one-off warm-up and are left off the p99 line.${warmupWhy}` : ''}</p>`;
   const canvas = card.querySelector('canvas');
   const fg = cssVar('--fg');
   const muted = cssVar('--muted');
@@ -193,7 +291,8 @@ function rampCard(rec, key, flavour) {
       datasets: [
         {
           label: 'host footprint',
-          data: steps.map(s => ({ x: s[idx.workloads], y: s[idx.footprint_bytes] / 2 ** 30 })),
+          data: steps.filter(s => s[idx.footprint_bytes] != null)
+            .map(s => ({ x: s[idx.workloads], y: s[idx.footprint_bytes] / 2 ** 30 })),
           borderColor: color,
           backgroundColor: withAlpha(color, 0.18),
           fill: 'origin',

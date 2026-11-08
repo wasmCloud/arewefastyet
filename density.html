@@ -53,13 +53,17 @@
 
   <footer>
     <p>
-      The record runs and the walls are a hand-run campaign on one EC2
-      c9g.16xlarge (<a href="data/density-records.json">data</a>), each step
-      of a ramp being one row of the bench's own report. A workload is counted
-      only once it answers a request; footprint is the host process's
-      anonymous memory, swap and page tables. The CI table is the latest
-      published <code>scale_density</code> run per host, at CI's defaults
-      (a 2 GiB process cap), so it shows regressions rather than records.
+      The record and its ramps are the newest published run of the bench
+      workflow's <code>million_warm</code> preset (group
+      <code>density-max</code>) on the selected host, each ramp thinned to at
+      most 80 steps of the bench's own report. A host with no such run yet
+      shows the hand-run campaign on one EC2 c9g.16xlarge instead
+      (<a href="data/density-records.json">data</a>); the walls always come
+      from that file. A workload is counted only once it answers a request;
+      footprint is the host process's anonymous memory, swap and page tables.
+      The CI table is the latest published <code>scale_density</code> run per
+      host, at CI's defaults (a 2 GiB process cap), so it shows regressions
+      rather than records.
     </p>
   </footer>
 
