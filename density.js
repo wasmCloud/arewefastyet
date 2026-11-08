@@ -159,6 +159,10 @@ function rampCard(rec, key, flavour) {
   const idx = Object.fromEntries(rec.step_fields.map((f, i) => [f, i]));
   const steps = ramp.steps;
   const top = steps.at(-1);
+  // Leading steps whose requests paid a one-off warm-up: kept in the data,
+  // left off the p99 line so it does not set the axis.
+  const warmup = ramp.warmup_steps ?? 0;
+  const skipped = steps.slice(0, warmup).filter(s => s[idx.request_p99_ms] != null);
   const card = document.createElement('div');
   card.className = 'chart-card';
   card.id = `ramp-${key}`;
@@ -173,7 +177,9 @@ function rampCard(rec, key, flavour) {
     <div class="chart-wrapper ramp"><canvas aria-label="${escapeHtml(`${flavour.label}: host footprint and request p99 against running workloads`)}"></canvas></div>
     <p class="card-foot">Stopped at <b>${fmtCount(top[idx.workloads])}</b> workloads: ${escapeHtml(ramp.stop)}.
       ${fmtCount(ramp.marginal_bytes_per_workload)} B (${escapeHtml(formatBytes(ramp.marginal_bytes_per_workload))}) a workload on top of a
-      ${escapeHtml(formatBytes(ramp.baseline_footprint_bytes))} baseline.</p>`;
+      ${escapeHtml(formatBytes(ramp.baseline_footprint_bytes))} baseline.${skipped.length ? `
+      The first step's requests (p99 ${escapeHtml(skipped.map(s => `${s[idx.request_p99_ms].toFixed(1)} ms at ${fmtBig(s[idx.workloads])}`).join(', '))})
+      paid a one-off warm-up and are left off the p99 line.` : ''}</p>`;
   const canvas = card.querySelector('canvas');
   const fg = cssVar('--fg');
   const muted = cssVar('--muted');
@@ -197,7 +203,7 @@ function rampCard(rec, key, flavour) {
         },
         {
           label: 'request p99',
-          data: steps.map(s => point(s, idx.request_p99_ms)).filter(Boolean),
+          data: steps.slice(warmup).map(s => point(s, idx.request_p99_ms)).filter(Boolean),
           borderColor: p99Color,
           backgroundColor: p99Color,
           pointRadius: 0,
