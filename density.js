@@ -4,11 +4,12 @@
 //   - history.json, group `density-max`: the newest run of the bench
 //     workflow's million_warm preset on the selected host. Its `ramp` rows
 //     (one per flavour, the steps thinned to at most 80) give the hero
-//     numbers and the ramps.
+//     numbers and the ramps once that run has served at least as many
+//     workloads as the records file in both modes (pickRecord).
 //   - data/density-records.json: a hand-run scale_density campaign on one
 //     host. Its walls, the ceiling each change moved, are curated and always
-//     come from here. Its ramps are the fallback for a host with no
-//     density-max run yet.
+//     come from here. Its ramps lead until a CI run beats them, and are the
+//     fallback for a host with no density-max run yet.
 //   - history.json, group `density`: the latest scale_density run per host
 //     at CI's defaults, so a regression shows up next to the record.
 //
@@ -96,7 +97,7 @@ function render() {
 
   const fileRec = records && records.host_label === host ? records : null;
   const hostRows = ciRows.filter(r => rowHost(r) === host);
-  const rec = recordFromCi(hostRows, fileRec) ?? fileRec;
+  const rec = pickRecord(recordFromCi(hostRows, fileRec), fileRec);
   const ci = hostRows.filter(r => r.group !== MAX_GROUP && !isRampRow(r));
   setLastUpdated(rec, ci);
 
@@ -132,20 +133,40 @@ function setLastUpdated(rec, ci) {
   el.textContent = parts.join(' · ') || 'no runs yet';
 }
 
+// The step a ramp is counted at: the last one where every workload still
+// answered. CI marks those steps clean; the hand-made file has no such
+// column, so there it is the last step that served requests. The step the
+// run stopped at can hold workloads that were deployed but never served.
+function topStep(rec, key) {
+  const ramp = rec?.ramps?.[key];
+  if (!ramp?.steps?.length) return null;
+  const idx = Object.fromEntries(rec.step_fields.map((f, i) => [f, i]));
+  return idx.clean != null
+    ? ramp.steps.filter(s => s[idx.clean]).at(-1) ?? null
+    : ramp.steps.filter(s => s[idx.request_p99_ms] != null).at(-1) ?? ramp.steps.at(-1);
+}
+
+function servedAt(rec, key) {
+  const step = topStep(rec, key);
+  return step ? step[rec.step_fields.indexOf('workloads')] ?? 0 : 0;
+}
+
+// The record the page leads with. The newest CI run takes over only once it
+// has served at least as many workloads as the records file in both modes,
+// so a CI run at tighter settings never shrinks the headline. The run that
+// lost is kept so the hero can link it.
+function pickRecord(ciRec, fileRec) {
+  if (!ciRec || !fileRec) return ciRec ?? fileRec;
+  const beats = ['warm', 'scale_to_zero'].every(k => servedAt(ciRec, k) >= servedAt(fileRec, k));
+  return beats ? { ...ciRec, other: fileRec } : { ...fileRec, other: ciRec };
+}
+
 function hero(rec) {
   const warm = rec.ramps?.warm;
   const stz = rec.ramps?.scale_to_zero;
-  const last = ramp => ramp?.steps?.at(-1);
   const idx = Object.fromEntries(rec.step_fields.map((f, i) => [f, i]));
-  // The step a ramp is counted at: the last one where every workload still
-  // answered. CI marks those steps clean; the hand-made file has no such
-  // column, so there it is the last step that served requests. The step the
-  // run stopped at can hold workloads that were deployed but never served.
-  const top = ramp => (idx.clean != null
-    ? ramp?.steps?.filter(s => s[idx.clean]).at(-1)
-    : ramp?.steps?.filter(s => s[idx.request_p99_ms] != null).at(-1) ?? last(ramp));
-  const warmTop = top(warm);
-  const stzTop = top(stz);
+  const warmTop = topStep(rec, 'warm');
+  const stzTop = topStep(rec, 'scale_to_zero');
   // p99 at the top of the warm ramp: the last step that served requests.
   const warmServed = warm?.steps
     ?.filter(s => s[idx.request_p99_ms] != null && (idx.clean == null || s[idx.clean]))
@@ -156,7 +177,7 @@ function hero(rec) {
   const tiles = [
     warmTop && ['warm components', fmtBig(warmTop[idx.workloads]), 'every one kept running and answering HTTP'],
     stzTop && ['scale-to-zero workloads', fmtBig(stzTop[idx.workloads]), 'served, each started on its request'],
-    warm?.marginal_bytes_per_workload != null && ['per warm component', `${Math.round(warm.marginal_bytes_per_workload / 1024)} KiB`, 'host memory, page tables included'],
+    warm?.marginal_bytes_per_workload != null && ['per warm component', `${Math.round(warm.marginal_bytes_per_workload / 1024)} KiB`, rec.footprint_includes_page_tables ? 'host memory, page tables included' : 'host memory (anonymous RSS and swap)'],
     warmServed && ['request p99 at the top', `${warmServed[idx.request_p99_ms].toFixed(1)} ms`, `across ${fmtBig(warmServed[idx.workloads])} warm components`],
     peakStarts && ['cold starts per second', fmtBig(peakStarts), 'scale-to-zero, peak step'],
   ].filter(Boolean);
@@ -172,8 +193,16 @@ function hero(rec) {
         <div class="hero-sub">${escapeHtml(sub)}</div>
       </div>`).join('')}
     </div>
-    ${rec.ci_run ? `<p class="hero-foot">${rec.source === 'ci' ? 'From the newest published run in GitHub Actions' : 'Reproduced from GitHub Actions'}: <a href="${REPO_URL}/actions/runs/${encodeURIComponent(rec.ci_run.run_id)}" target="_blank" rel="noopener">${escapeHtml(rec.ci_run.label)}</a></p>` : ''}`;
+    ${rec.ci_run && rec.other?.source !== 'ci' ? `<p class="hero-foot">${rec.source === 'ci' ? 'From the newest published run in GitHub Actions' : 'Reproduced from GitHub Actions'}: ${runLink(rec.ci_run)}</p>` : ''}
+    ${rec.other?.source === 'ci' && rec.other.ci_run ? `<p class="hero-foot">Newest CI run, at CI's settings: ${runLink({
+      run_id: rec.other.ci_run.run_id,
+      label: `${rec.other.ci_run.label.replace(/: .*/, '')}: ${fmtCount(servedAt(rec.other, 'warm'))} warm, ${fmtCount(servedAt(rec.other, 'scale_to_zero'))} scale-to-zero served`,
+    })}. The page switches to CI once a run beats this record in both modes.</p>` : ''}`;
   return el;
+}
+
+function runLink(run) {
+  return `<a href="${REPO_URL}/actions/runs/${encodeURIComponent(run.run_id)}" target="_blank" rel="noopener">${escapeHtml(run.label)}</a>`;
 }
 
 // The newest density-max run on this host, in the records file's shape so
@@ -215,6 +244,8 @@ function recordFromCi(rows, base) {
     machine: base?.machine,
     component: base?.component,
     date: newest.timestamp?.slice(0, 10),
+    // Rows only say so once the bench counts page tables in the footprint.
+    footprint_includes_page_tables: run.some(r => r.footprint_includes_page_tables === true),
     step_fields: CI_STEP_FIELDS,
     ramps: out,
     walls: base?.walls,
